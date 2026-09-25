@@ -120,3 +120,14 @@
 /home/mgyczew/CoursePlatform/Backend/bin/Debug/net10.0/tr/Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
 /home/mgyczew/CoursePlatform/Backend/bin/Debug/net10.0/zh-Hans/Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
 /home/mgyczew/CoursePlatform/Backend/bin/Debug/net10.0/zh-Hant/Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+/home/mgyczew/CoursePlatform/Backend/bin/Debug/net10.0/BCrypt-Net-Next.dll
+/home/mgyczew/CoursePlatform/Backend/bin/Debug/net10.0/Microsoft.AspNetCore.Authentication.JwtBearer.dll
+/home/mgyczew/CoursePlatform/Backend/bin/Debug/net10.0/Microsoft.Bcl.Cryptography.dll
+/home/mgyczew/CoursePlatform/Backend/bin/Debug/net10.0/Microsoft.IdentityModel.Abstractions.dll
+/home/mgyczew/CoursePlatform/Backend/bin/Debug/net10.0/Microsoft.IdentityModel.JsonWebTokens.dll
+/home/mgyczew/CoursePlatform/Backend/bin/Debug/net10.0/Microsoft.IdentityModel.Logging.dll
+/home/mgyczew/CoursePlatform/Backend/bin/Debug/net10.0/Microsoft.IdentityModel.Protocols.dll
+/home/mgyczew/CoursePlatform/Backend/bin/Debug/net10.0/Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
+/home/mgyczew/CoursePlatform/Backend/bin/Debug/net10.0/Microsoft.IdentityModel.Tokens.dll
+/home/mgyczew/CoursePlatform/Backend/bin/Debug/net10.0/System.IdentityModel.Tokens.Jwt.dll
+/home/mgyczew/CoursePlatform/Backend/obj/Debug/net10.0/Backend.sourcelink.json

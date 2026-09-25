@@ -44,7 +44,7 @@ export function CoursePage({
       >
         ← Powrót do kursów
       </button>
-
+      <br />
       {course.imageUrl && (
         <img
           src={course.imageUrl}

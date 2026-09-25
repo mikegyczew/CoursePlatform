@@ -24,10 +24,27 @@ public class LessonsController : ControllerBase
         return Ok(lessons);
     }
 
-    [HttpGet("{lessonId:int}")]
-    public async Task<ActionResult<LessonDto>> GetLessonById(
+    [HttpPost]
+    public async Task<ActionResult<LessonDto>> CreateLesson(
         int courseId,
-        int lessonId)
+        CreateLessonDto dto)
+    {
+        var lesson = await _lessonService.CreateLessonAsync(
+            courseId,
+            dto);
+
+        if (lesson is null)
+        {
+            return NotFound($"Kurs o ID {courseId} nie istnieje.");
+        }
+
+        return Created(
+            $"/api/courses/{courseId}/lessons/{lesson.Id}",
+            lesson);
+    }
+
+    [HttpGet("{lessonId:int}")]
+    public async Task<ActionResult<LessonDto>> GetLessonById(int courseId, int lessonId)
     {
         var lesson = await _lessonService.GetLessonByIdAsync(
             courseId,
@@ -40,24 +57,5 @@ public class LessonsController : ControllerBase
 
         return Ok(lesson);
     }
-
-    [HttpPost]
-    public async Task<ActionResult<LessonDto>> CreateLesson(
-        int courseId,
-        CreateLessonDto dto)
-    {
-        var lesson = await _lessonService.CreateLessonAsync(
-            courseId,
-            dto);
-
-        if (lesson is null)
-        {
-            return NotFound(
-                $"Kurs o ID {courseId} nie istnieje.");
-        }
-
-        return Created(
-            $"/api/courses/{courseId}/lessons/{lesson.Id}",
-            lesson);
-    }
 }
+

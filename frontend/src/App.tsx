@@ -4,18 +4,38 @@ import "./App.css";
 import { CourseCard } from "./components/CourseCard";
 import { CoursePage } from "./pages/CoursePage";
 import { LessonPage } from "./pages/LessonPage";
+import { LoginPage } from "./pages/LoginPage";
 import { getCourses } from "./services/courseService";
+import {
+  getAuthUser,
+  logout,
+} from "./services/authService";
 import type { Course } from "./types/course";
 
 function App() {
+  const [loggedIn, setLoggedIn] = useState(
+    Boolean(localStorage.getItem("authToken"))
+  );
+
   const [courses, setCourses] = useState<Course[]>([]);
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [selectedLessonId, setSelectedLessonId] = useState<number | null>(null);
+  const [selectedCourse, setSelectedCourse] =
+    useState<Course | null>(null);
+
+  const [selectedLessonId, setSelectedLessonId] =
+    useState<number | null>(null);
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const user = getAuthUser();
 
   useEffect(() => {
+    if (!loggedIn) {
+      setLoading(false);
+      return;
+    }
+
     async function loadCourses() {
       try {
         const data = await getCourses();
@@ -29,15 +49,46 @@ function App() {
     }
 
     loadCourses();
-  }, []);
+  }, [loggedIn]);
 
-  if (selectedCourse && selectedLessonId !== null) {
+  if (!loggedIn) {
+    return (
+      <LoginPage
+        onLogin={() => setLoggedIn(true)}
+      />
+    );
+  }
+
+  function handleLogout() {
+    logout();
+    setLoggedIn(false);
+    setSelectedCourse(null);
+    setSelectedLessonId(null);
+  }
+
+  if (
+    selectedCourse &&
+    selectedLessonId !== null
+  ) {
     return (
       <div className="app">
         <header className="header">
-          <div className="container">
-            <h1>Platforma kursów online</h1>
-            <p>Pierwszy krok do lepszego ja</p>
+          <div className="container header-content">
+            <div>
+              <h1>Platforma kursów online</h1>
+              <p>Pierwszy krok do lepszego ja</p>
+            </div>
+
+            <div className="user-area">
+              <span>{user?.name}</span>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+              >
+                Wyloguj
+              </button>
+            </div>
           </div>
         </header>
 
@@ -55,16 +106,31 @@ function App() {
     return (
       <div className="app">
         <header className="header">
-          <div className="container">
-            <h1>Platforma kursów online</h1>
-            <p>Pierwszy krok do lepszego ja</p>
+          <div className="container header-content">
+            <div>
+              <h1>Platforma kursów online</h1>
+              <p>Pierwszy krok do lepszego ja</p>
+            </div>
+
+            <div className="user-area">
+              <span>{user?.name}</span>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+              >
+                Wyloguj
+              </button>
+            </div>
           </div>
         </header>
 
         <CoursePage
           course={selectedCourse}
           onBack={() => setSelectedCourse(null)}
-          onLessonClick={(lessonId) => setSelectedLessonId(lessonId)}
+          onLessonClick={(lessonId) =>
+            setSelectedLessonId(lessonId)
+          }
         />
       </div>
     );
@@ -73,9 +139,22 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <div className="container">
-          <h1>Platforma kursów online</h1>
-          <p>Pierwszy krok do lepszego ja</p>
+        <div className="container header-content">
+          <div>
+            <h1>Platforma kursów online</h1>
+            <p>Pierwszy krok do lepszego ja</p>
+          </div>
+
+          <div className="user-area">
+            <span>{user?.name}</span>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+            >
+              Wyloguj
+            </button>
+          </div>
         </div>
       </header>
 
@@ -84,28 +163,40 @@ function App() {
           <h2>Dostępne kursy</h2>
 
           {loading && (
-            <p className="status">Ładowanie kursów...</p>
+            <p className="status">
+              Ładowanie kursów...
+            </p>
           )}
 
           {error && (
-            <p className="status error">{error}</p>
+            <p className="status error">
+              {error}
+            </p>
           )}
 
-          {!loading && !error && courses.length === 0 && (
-            <p className="status">Brak dostępnych kursów.</p>
-          )}
+          {!loading &&
+            !error &&
+            courses.length === 0 && (
+              <p className="status">
+                Brak dostępnych kursów.
+              </p>
+            )}
 
-          {!loading && !error && courses.length > 0 && (
-            <div className="courses-grid">
-              {courses.map((course) => (
-                <CourseCard
-                  key={course.id}
-                  course={course}
-                  onClick={() => setSelectedCourse(course)}
-                />
-              ))}
-            </div>
-          )}
+          {!loading &&
+            !error &&
+            courses.length > 0 && (
+              <div className="courses-grid">
+                {courses.map((course) => (
+                  <CourseCard
+                    key={course.id}
+                    course={course}
+                    onClick={() =>
+                      setSelectedCourse(course)
+                    }
+                  />
+                ))}
+              </div>
+            )}
         </section>
       </main>
     </div>

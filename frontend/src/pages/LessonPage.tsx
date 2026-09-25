@@ -4,6 +4,10 @@ import rehypeSanitize from "rehype-sanitize";
 
 import type { Lesson } from "../types/lesson";
 import { getLesson, getLessons } from "../services/lessonService";
+import {
+  getCourseProgress,
+  setLessonCompleted,
+} from "../services/progressService";
 
 interface LessonPageProps {
   courseId: number;
@@ -24,21 +28,7 @@ export function LessonPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const storageKey = `course-${courseId}-completed`;
 
-  useEffect(() => {
-    const saved = localStorage.getItem(storageKey);
-
-    if (saved) {
-      try {
-        setCompletedLessons(JSON.parse(saved));
-      } catch {
-        setCompletedLessons([]);
-      }
-    } else {
-      setCompletedLessons([]);
-    }
-  }, [storageKey]);
 
   useEffect(() => {
     async function loadData() {
@@ -46,13 +36,24 @@ export function LessonPage({
         setLoading(true);
         setError(null);
 
-        const [lessonData, lessonsData] = await Promise.all([
+        const [
+          lessonData,
+          lessonsData,
+          progressData,
+        ] = await Promise.all([
           getLesson(courseId, lessonId),
           getLessons(courseId),
+          getCourseProgress(courseId),
         ]);
 
         setLesson(lessonData);
         setLessons(lessonsData);
+
+        setCompletedLessons(
+          progressData
+            .filter((item) => item.isCompleted)
+            .map((item) => item.lessonId)
+        );
       } catch (err) {
         console.error(err);
         setError("Nie udało się pobrać lekcji.");
@@ -64,26 +65,47 @@ export function LessonPage({
     loadData();
   }, [courseId, lessonId]);
 
-  function saveCompletedLessons(ids: number[]) {
-    setCompletedLessons(ids);
-    localStorage.setItem(storageKey, JSON.stringify(ids));
-  }
-
-  function markCompleted() {
+  async function markCompleted() {
     if (completedLessons.includes(lessonId)) {
       return;
     }
 
-    saveCompletedLessons([
-      ...completedLessons,
-      lessonId,
-    ]);
+    try {
+      await setLessonCompleted(
+        courseId,
+        lessonId,
+        true
+      );
+
+      setCompletedLessons((current) => [
+        ...current,
+        lessonId,
+      ]);
+    } catch (err) {
+      console.error(err);
+      setError(
+        "Nie udało się zapisać ukończenia lekcji."
+      );
+    }
   }
 
-  function undoCompleted() {
-    saveCompletedLessons(
-      completedLessons.filter((id) => id !== lessonId)
-    );
+  async function undoCompleted() {
+    try {
+      await setLessonCompleted(
+        courseId,
+        lessonId,
+        false
+      );
+
+      setCompletedLessons((current) =>
+        current.filter((id) => id !== lessonId)
+      );
+    } catch (err) {
+      console.error(err);
+      setError(
+        "Nie udało się cofnąć ukończenia lekcji."
+      );
+    }
   }
 
   function goToLesson(id: number) {
@@ -162,8 +184,10 @@ export function LessonPage({
         <span className="lesson-number-large">
           LEKCJA {String(lesson.order).padStart(2, "0")}
         </span>
+        
+        <br />
 
-        <h1 className="lesson-title">
+        <h1 className="lesson-title"> 
           {lesson.title}
         </h1>
 

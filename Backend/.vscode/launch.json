@@ -3,11 +3,11 @@
   "configurations": [
     {
       "name": "Backend (.NET)",
-      "type": "coreclr",
+      "type": "dotnet",
       "request": "launch",
       "preLaunchTask": "build backend",
-      "program": "${workspaceFolder}/bin/Debug/net10.0/Backend.dll",
-      "args": [],
+      "projectPath": "${workspaceFolder}/Backend.csproj",
+      "launchBrowser": false,
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "env": {
@@ -19,8 +19,9 @@
       "name": "Frontend (Vite)",
       "type": "node-terminal",
       "request": "launch",
-      "command": "npm run dev -- --host 127.0.0.1 --port 5176 --strictPort",
-      "cwd": "${workspaceFolder}/../frontend"
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/../frontend",
+      "console": "integratedTerminal"
     }
   ],
   "compounds": [

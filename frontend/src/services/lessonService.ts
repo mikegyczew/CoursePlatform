@@ -1,6 +1,6 @@
 import type { Lesson } from "../types/lesson";
 
-const API_URL = "http://localhost:5246/api";
+const API_URL = "http://127.0.0.1:5246/api";
 
 export async function getLessons(
   courseId: number
