@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: courseplatform-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: courseplatform
+      POSTGRES_USER: courseplatform
+      POSTGRES_PASSWORD: courseplatform_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - courseplatform_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  courseplatform_postgres_data:
