@@ -28,32 +28,38 @@ export function LessonPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-
-
   useEffect(() => {
     async function loadData() {
       try {
         setLoading(true);
         setError(null);
 
-        const [
-          lessonData,
-          lessonsData,
-          progressData,
-        ] = await Promise.all([
+        // Lekcja i lista lekcji są niezależne od logowania.
+        const [lessonData, lessonsData] = await Promise.all([
           getLesson(courseId, lessonId),
           getLessons(courseId),
-          getCourseProgress(courseId),
         ]);
 
         setLesson(lessonData);
         setLessons(lessonsData);
 
-        setCompletedLessons(
-          progressData
-            .filter((item) => item.isCompleted)
-            .map((item) => item.lessonId)
-        );
+        // Progress wymaga JWT, więc jego błąd nie może zablokować lekcji.
+        try {
+          const progressData = await getCourseProgress(courseId);
+
+          setCompletedLessons(
+            progressData
+              .filter((item) => item.isCompleted)
+              .map((item) => item.lessonId)
+          );
+        } catch (progressError) {
+          console.warn(
+            "Nie udało się pobrać postępu użytkownika:",
+            progressError
+          );
+
+          setCompletedLessons([]);
+        }
       } catch (err) {
         console.error(err);
         setError("Nie udało się pobrać lekcji.");
@@ -71,11 +77,7 @@ export function LessonPage({
     }
 
     try {
-      await setLessonCompleted(
-        courseId,
-        lessonId,
-        true
-      );
+      await setLessonCompleted(courseId, lessonId, true);
 
       setCompletedLessons((current) => [
         ...current,
@@ -91,11 +93,7 @@ export function LessonPage({
 
   async function undoCompleted() {
     try {
-      await setLessonCompleted(
-        courseId,
-        lessonId,
-        false
-      );
+      await setLessonCompleted(courseId, lessonId, false);
 
       setCompletedLessons((current) =>
         current.filter((id) => id !== lessonId)
@@ -184,10 +182,10 @@ export function LessonPage({
         <span className="lesson-number-large">
           LEKCJA {String(lesson.order).padStart(2, "0")}
         </span>
-        
+
         <br />
 
-        <h1 className="lesson-title"> 
+        <h1 className="lesson-title">
           {lesson.title}
         </h1>
 

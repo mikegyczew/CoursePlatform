@@ -37,7 +37,7 @@ builder.Services.AddAuthentication(
 )
 .AddJwtBearer(options =>
 {
-    options.MapInboundClaims = true;
+    options.MapInboundClaims = false;
 
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -52,6 +52,41 @@ builder.Services.AddAuthentication(
         IssuerSigningKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(jwtKey)
         )
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var hasAuthorizationHeader =
+                !string.IsNullOrWhiteSpace(
+                    context.Request.Headers.Authorization
+                );
+
+            Console.WriteLine(
+                $"JWT HEADER: {hasAuthorizationHeader}"
+            );
+
+            return Task.CompletedTask;
+        },
+
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine(
+                $"JWT ERROR: {context.Exception.Message}"
+            );
+
+            return Task.CompletedTask;
+        },
+
+        OnTokenValidated = context =>
+        {
+            Console.WriteLine(
+                "JWT OK - token został poprawnie zweryfikowany."
+            );
+
+            return Task.CompletedTask;
+        }
     };
 });
 

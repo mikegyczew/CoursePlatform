@@ -18,6 +18,14 @@ public class LessonProgressService
         int userId,
         int courseId)
     {
+        var courseExists = await _dbContext.Courses
+            .AnyAsync(course => course.Id == courseId);
+
+        if (!courseExists)
+        {
+            return [];
+        }
+
         return await _dbContext.LessonProgress
             .AsNoTracking()
             .Where(progress =>
@@ -34,17 +42,37 @@ public class LessonProgressService
 
     public async Task<bool> SetCompletedAsync(
         int userId,
+        int courseId,
         int lessonId,
         bool completed)
     {
-        var lessonExists = await _dbContext.Lessons
-            .AnyAsync(lesson => lesson.Id == lessonId);
+        // Sprawdzamy, czy użytkownik istnieje.
+        var userExists = await _dbContext.Users
+            .AnyAsync(user => user.Id == userId);
 
-        if (!lessonExists)
+        if (!userExists)
         {
             return false;
         }
 
+        // Pobieramy lekcję razem z informacją, do którego kursu należy.
+        var lesson = await _dbContext.Lessons
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == lessonId);
+
+        if (lesson is null)
+        {
+            return false;
+        }
+
+        // Najważniejsza kontrola:
+        // lekcja musi należeć do kursu przekazanego w URL.
+        if (lesson.CourseId != courseId)
+        {
+            return false;
+        }
+
+        // Sprawdzamy, czy użytkownik ma już progress dla tej lekcji.
         var progress = await _dbContext.LessonProgress
             .FirstOrDefaultAsync(item =>
                 item.UserId == userId &&

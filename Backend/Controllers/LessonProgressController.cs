@@ -1,4 +1,4 @@
-using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 using Backend.DTOs;
 using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -50,14 +50,26 @@ public class LessonProgressController : ControllerBase
             return Unauthorized();
         }
 
-        var lesson = await _progressService.SetCompletedAsync(
+        // Dodatkowe zabezpieczenie:
+        // lessonId z URL musi być zgodne z lessonId w body.
+        if (dto.LessonId != 0 && dto.LessonId != lessonId)
+        {
+            return BadRequest(
+                "LessonId w adresie URL i danych żądania musi być taki sam."
+            );
+        }
+
+        var success = await _progressService.SetCompletedAsync(
             userId.Value,
+            courseId,
             lessonId,
             dto.IsCompleted);
 
-        if (!lesson)
+        if (!success)
         {
-            return NotFound();
+            return NotFound(
+                "Kurs, lekcja lub użytkownik nie istnieje albo lekcja nie należy do tego kursu."
+            );
         }
 
         return NoContent();
@@ -65,8 +77,9 @@ public class LessonProgressController : ControllerBase
 
     private int? GetUserId()
     {
-        var claim = User.FindFirstValue(
-            ClaimTypes.NameIdentifier);
+        var claim = User.FindFirst(
+            JwtRegisteredClaimNames.Sub
+        )?.Value;
 
         if (int.TryParse(claim, out var userId))
         {

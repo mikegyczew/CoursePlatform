@@ -1,3 +1,5 @@
+import { getAuthToken } from "./authService";
+
 export interface LessonProgress {
   lessonId: number;
   isCompleted: boolean;
@@ -7,7 +9,13 @@ export interface LessonProgress {
 const API_URL = "http://127.0.0.1:5246/api";
 
 function getAuthHeaders(): HeadersInit {
-  const token = localStorage.getItem("authToken");
+  const token = getAuthToken();
+
+  if (!token) {
+    throw new Error(
+      "Brak tokena JWT. Użytkownik nie jest zalogowany."
+    );
+  }
 
   return {
     "Content-Type": "application/json",
@@ -26,6 +34,14 @@ export async function getCourseProgress(
   );
 
   if (!response.ok) {
+    const responseText = await response.text();
+
+    console.error(
+      "GET progress:",
+      response.status,
+      responseText
+    );
+
     throw new Error(
       "Nie udało się pobrać postępu kursu."
     );
@@ -52,6 +68,14 @@ export async function setLessonCompleted(
   );
 
   if (!response.ok) {
+    const responseText = await response.text();
+
+    console.error(
+      "PUT progress:",
+      response.status,
+      responseText
+    );
+
     throw new Error(
       "Nie udało się zapisać postępu."
     );
