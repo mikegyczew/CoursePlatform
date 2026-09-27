@@ -3,9 +3,13 @@ FROM node:24-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
+
 RUN npm ci
 
 COPY . .
+
+ENV VITE_API_URL=https://courseplatform-p8b0.onrender.com
+
 RUN npm run build
 
 
