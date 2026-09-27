@@ -130,4 +130,11 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
+app.MapGet("/", () => Results.Ok(new
+{
+    status = "ok",
+    message = "CoursePlatform API działa",
+    api = "/api/courses"
+}));
+
 app.Run();
