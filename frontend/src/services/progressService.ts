@@ -6,7 +6,7 @@ export interface LessonProgress {
   completedAt: string | null;
 }
 
-const API_URL = "http://127.0.0.1:5246/api";
+const API_URL = `${import.meta.env.VITE_API_URL}/api`;
 
 function getAuthHeaders(): HeadersInit {
   const token = getAuthToken();

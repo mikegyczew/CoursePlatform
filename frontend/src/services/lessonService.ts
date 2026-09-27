@@ -1,6 +1,6 @@
 import type { Lesson } from "../types/lesson";
 
-const API_URL = "http://127.0.0.1:5246/api";
+const API_URL = `${import.meta.env.VITE_API_URL}/api`;
 
 export async function getLessons(
   courseId: number
