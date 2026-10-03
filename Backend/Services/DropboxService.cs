@@ -99,7 +99,10 @@ public sealed class DropboxService(
             request,
             cancellationToken
         );
-        response.EnsureSuccessStatusCode();
+        await EnsureDropboxSuccessStatusCodeAsync(
+            response,
+            cancellationToken
+        );
 
         var account = await response.Content.ReadFromJsonAsync<
             DropboxCurrentAccount
@@ -258,7 +261,10 @@ public sealed class DropboxService(
             request,
             cancellationToken
         );
-        response.EnsureSuccessStatusCode();
+        await EnsureDropboxSuccessStatusCodeAsync(
+            response,
+            cancellationToken
+        );
 
         var result = await response.Content.ReadFromJsonAsync<
             DropboxTemporaryLink
@@ -311,7 +317,10 @@ public sealed class DropboxService(
             request,
             cancellationToken
         );
-        response.EnsureSuccessStatusCode();
+        await EnsureDropboxSuccessStatusCodeAsync(
+            response,
+            cancellationToken
+        );
 
         return await response.Content.ReadFromJsonAsync<DropboxTokenResponse>(
                 JsonOptions,
@@ -330,7 +339,13 @@ public sealed class DropboxService(
         var accessToken = await GetAccessTokenAsync(cancellationToken);
         var entries = new List<DropboxEntry>();
         var endpoint = ListFolderEndpoint;
-        object requestBody = new { path, recursive = false, limit = 2000 };
+        object requestBody = new
+        {
+            path,
+            recursive = false,
+            limit = 2000,
+            include_non_downloadable_files = true
+        };
 
         while (true)
         {
@@ -346,7 +361,10 @@ public sealed class DropboxService(
                 request,
                 cancellationToken
             );
-            response.EnsureSuccessStatusCode();
+            await EnsureDropboxSuccessStatusCodeAsync(
+                response,
+                cancellationToken
+            );
 
             var result = await response.Content.ReadFromJsonAsync<
                 DropboxListFolderResponse
@@ -388,7 +406,10 @@ public sealed class DropboxService(
             HttpCompletionOption.ResponseHeadersRead,
             cancellationToken
         );
-        response.EnsureSuccessStatusCode();
+        await EnsureDropboxSuccessStatusCodeAsync(
+            response,
+            cancellationToken
+        );
 
         if (response.Content.Headers.ContentLength is > MaxTextFileBytes)
         {
@@ -466,6 +487,57 @@ public sealed class DropboxService(
 
     private static bool IsTextFile(string name) =>
         Path.GetExtension(name).ToLowerInvariant() is ".txt" or ".md" or ".markdown";
+
+    private static async Task EnsureDropboxSuccessStatusCodeAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken
+    )
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        string? errorSummary = null;
+        var errorContent = await response.Content.ReadAsStringAsync(
+            cancellationToken
+        );
+
+        try
+        {
+            using var document = JsonDocument.Parse(errorContent);
+            if (
+                document.RootElement.TryGetProperty(
+                    "error_summary",
+                    out var summary
+                )
+            )
+            {
+                errorSummary = summary.GetString();
+            }
+        }
+        catch (JsonException)
+        {
+            errorSummary = null;
+        }
+
+        var requestId = response.Headers.TryGetValues(
+            "Dropbox-API-Request-Id",
+            out var requestIds
+        )
+            ? requestIds.FirstOrDefault()
+            : null;
+        var details = errorSummary ?? "Dropbox did not provide an error summary.";
+        var requestDetails = requestId is null
+            ? string.Empty
+            : $" Request ID: {requestId}.";
+
+        throw new HttpRequestException(
+            $"Dropbox API returned {(int)response.StatusCode} ({response.StatusCode}): {details}.{requestDetails}",
+            null,
+            response.StatusCode
+        );
+    }
 
     private static (string Kind, string ContentType) GetFilePresentation(
         string name
