@@ -34,7 +34,7 @@ services:
       Dropbox__AppSecret: ${DROPBOX_APP_SECRET:-}
       Dropbox__RefreshToken: ${DROPBOX_REFRESH_TOKEN:-}
       Dropbox__RedirectUri: ${DROPBOX_REDIRECT_URI:-http://localhost:8080/api/dropbox/callback}
-      Dropbox__RootFolder: /Ekonomia
+      Dropbox__RootFolder: ${DROPBOX_ROOT_FOLDER:-/Ekonomia}
       Cors__AllowedOrigins__0: http://localhost:3000
     ports:
       - "8080:8080"
