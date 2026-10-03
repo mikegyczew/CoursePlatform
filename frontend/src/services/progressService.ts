@@ -6,7 +6,10 @@ export interface LessonProgress {
   completedAt: string | null;
 }
 
-const API_URL = `${import.meta.env.VITE_API_URL}/api`;
+const API_BASE = (import.meta.env.VITE_API_URL ?? "").trim();
+const API_URL = API_BASE
+  ? `${API_BASE.replace(/\/$/, "")}/api`
+  : "/api";
 
 function getAuthHeaders(): HeadersInit {
   const token = getAuthToken();
