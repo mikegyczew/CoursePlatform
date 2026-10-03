@@ -6,11 +6,55 @@ services:
     environment:
       POSTGRES_DB: courseplatform
       POSTGRES_USER: courseplatform
-      POSTGRES_PASSWORD: courseplatform_dev_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-courseplatform_dev_password}
     ports:
       - "5432:5432"
     volumes:
       - courseplatform_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U courseplatform -d courseplatform"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    image: courseplatform-backend:latest
+    container_name: courseplatform-backend
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=courseplatform;Username=courseplatform;Password=${POSTGRES_PASSWORD:-courseplatform_dev_password}
+      Jwt__Key: ${JWT_KEY:-CoursePlatformDevelopmentSecretKey1234567890}
+      Jwt__Issuer: CoursePlatform
+      Dropbox__AppKey: ${DROPBOX_APP_KEY:-}
+      Dropbox__AppSecret: ${DROPBOX_APP_SECRET:-}
+      Dropbox__RefreshToken: ${DROPBOX_REFRESH_TOKEN:-}
+      Dropbox__RedirectUri: ${DROPBOX_REDIRECT_URI:-http://localhost:8080/api/dropbox/callback}
+      Dropbox__RootFolder: /Ekonomia
+      Cors__AllowedOrigins__0: http://localhost:3000
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+    image: courseplatform-frontend:latest
+    container_name: courseplatform-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
 
 volumes:
   courseplatform_postgres_data:
