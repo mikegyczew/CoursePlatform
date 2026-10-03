@@ -14,4 +14,19 @@ public interface IDropboxService
     Task<DropboxAccountResponse> GetAccountAsync(
         CancellationToken cancellationToken
     );
+
+    Task<IReadOnlyList<DropboxLessonResponse>> GetLessonsAsync(
+        CancellationToken cancellationToken
+    );
+
+    Task<DropboxLessonResponse?> GetLessonAsync(
+        int lessonId,
+        CancellationToken cancellationToken
+    );
+
+    Task<string?> GetTemporaryLinkAsync(
+        int lessonId,
+        int fileId,
+        CancellationToken cancellationToken
+    );
 }

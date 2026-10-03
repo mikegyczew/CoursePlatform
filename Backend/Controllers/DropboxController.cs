@@ -48,7 +48,7 @@ public sealed class DropboxController(
         {
             return Redirect(dropboxService.CreateAuthorizationUrl(state));
         }
-        catch (InvalidOperationException exception)
+        catch (DropboxConfigurationException exception)
         {
             logger.LogWarning(exception, "Dropbox OAuth is not configured.");
             return Problem(
@@ -120,7 +120,7 @@ public sealed class DropboxController(
                 "Copy the refresh token to the Dropbox__RefreshToken secret in Render. Do not share it."
             ));
         }
-        catch (InvalidOperationException exception)
+        catch (DropboxConfigurationException exception)
         {
             logger.LogWarning(
                 exception,
@@ -161,7 +161,7 @@ public sealed class DropboxController(
                 await dropboxService.GetAccountAsync(cancellationToken)
             );
         }
-        catch (InvalidOperationException exception)
+        catch (DropboxConfigurationException exception)
         {
             logger.LogWarning(
                 exception,
@@ -181,6 +181,139 @@ public sealed class DropboxController(
             return Problem(
                 statusCode: StatusCodes.Status502BadGateway,
                 title: "Dropbox connection check failed."
+            );
+        }
+    }
+
+    /// <summary>Lists lesson folders inside the configured Dropbox course.</summary>
+    [Authorize]
+    [HttpGet("courses/{courseId:int}/lessons")]
+    [ProducesResponseType(typeof(IReadOnlyList<DropboxLessonResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<IReadOnlyList<DropboxLessonResponse>>> GetLessons(
+        int courseId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (courseId != -1)
+        {
+            return NotFound();
+        }
+
+        try
+        {
+            return Ok(
+                await dropboxService.GetLessonsAsync(cancellationToken)
+            );
+        }
+        catch (DropboxConfigurationException exception)
+        {
+            logger.LogWarning(exception, "Dropbox lessons are not configured.");
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Dropbox lessons are not configured."
+            );
+        }
+        catch (HttpRequestException exception)
+        {
+            logger.LogWarning(exception, "Dropbox lesson listing failed.");
+            return Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "Could not list Dropbox lessons."
+            );
+        }
+    }
+
+    /// <summary>Returns a Dropbox lesson and its text and media materials.</summary>
+    [Authorize]
+    [HttpGet("courses/{courseId:int}/lessons/{lessonId:int}")]
+    [ProducesResponseType(typeof(DropboxLessonResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<DropboxLessonResponse>> GetLesson(
+        int courseId,
+        int lessonId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (courseId != -1)
+        {
+            return NotFound();
+        }
+
+        try
+        {
+            var lesson = await dropboxService.GetLessonAsync(
+                lessonId,
+                cancellationToken
+            );
+            return lesson is null ? NotFound() : Ok(lesson);
+        }
+        catch (DropboxConfigurationException exception)
+        {
+            logger.LogWarning(exception, "Dropbox lesson is not configured.");
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Dropbox lesson is not configured."
+            );
+        }
+        catch (HttpRequestException exception)
+        {
+            logger.LogWarning(exception, "Dropbox lesson retrieval failed.");
+            return Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "Could not retrieve the Dropbox lesson."
+            );
+        }
+    }
+
+    /// <summary>Gets a short-lived URL to display or download a lesson file.</summary>
+    [Authorize]
+    [HttpGet("courses/{courseId:int}/lessons/{lessonId:int}/files/{fileId:int}/link")]
+    [ProducesResponseType(typeof(DropboxTemporaryLinkResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<DropboxTemporaryLinkResponse>> GetFileLink(
+        int courseId,
+        int lessonId,
+        int fileId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (courseId != -1)
+        {
+            return NotFound();
+        }
+
+        try
+        {
+            var url = await dropboxService.GetTemporaryLinkAsync(
+                lessonId,
+                fileId,
+                cancellationToken
+            );
+            return url is null
+                ? NotFound()
+                : Ok(new DropboxTemporaryLinkResponse(url));
+        }
+        catch (DropboxConfigurationException exception)
+        {
+            logger.LogWarning(exception, "Dropbox file link is not configured.");
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Dropbox file access is not configured."
+            );
+        }
+        catch (HttpRequestException exception)
+        {
+            logger.LogWarning(exception, "Dropbox file link request failed.");
+            return Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "Could not get a Dropbox file link."
             );
         }
     }

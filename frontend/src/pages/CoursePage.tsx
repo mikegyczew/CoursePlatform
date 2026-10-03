@@ -26,7 +26,11 @@ export function CoursePage({
         setLessons(data);
       } catch (err) {
         console.error(err);
-        setError("Nie udało się pobrać lekcji.");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Nie udało się pobrać lekcji."
+        );
       } finally {
         setLoading(false);
       }

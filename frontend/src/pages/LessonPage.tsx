@@ -3,7 +3,11 @@ import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 
 import type { Lesson } from "../types/lesson";
-import { getLesson, getLessons } from "../services/lessonService";
+import {
+  getDropboxMaterialLink,
+  getLesson,
+  getLessons,
+} from "../services/lessonService";
 import {
   getCourseProgress,
   setLessonCompleted,
@@ -25,6 +29,10 @@ export function LessonPage({
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [completedLessons, setCompletedLessons] = useState<number[]>([]);
+  const [materialLinks, setMaterialLinks] = useState<
+    Record<number, string>
+  >({});
+  const [failedMaterialIds, setFailedMaterialIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,6 +50,11 @@ export function LessonPage({
 
         setLesson(lessonData);
         setLessons(lessonsData);
+
+        if (courseId === -1) {
+          setCompletedLessons([]);
+          return;
+        }
 
         // Progress wymaga JWT, więc jego błąd nie może zablokować lekcji.
         try {
@@ -62,7 +75,11 @@ export function LessonPage({
         }
       } catch (err) {
         console.error(err);
-        setError("Nie udało się pobrać lekcji.");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Nie udało się pobrać lekcji."
+        );
       } finally {
         setLoading(false);
       }
@@ -70,6 +87,58 @@ export function LessonPage({
 
     loadData();
   }, [courseId, lessonId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMaterialLinks() {
+      if (courseId !== -1 || !lesson?.materials?.length) {
+        setMaterialLinks({});
+        setFailedMaterialIds([]);
+        return;
+      }
+
+      setMaterialLinks({});
+      setFailedMaterialIds([]);
+      const links = await Promise.all(
+        lesson.materials.map(async (material) => {
+          try {
+            return {
+              id: material.id,
+              url: await getDropboxMaterialLink(material.url),
+            };
+          } catch (linkError) {
+            console.error(
+              `Nie udało się pobrać materiału ${material.name}:`,
+              linkError
+            );
+            return { id: material.id, url: null };
+          }
+        })
+      );
+
+      if (!cancelled) {
+        setFailedMaterialIds(
+          links.filter((item) => item.url === null).map((item) => item.id)
+        );
+        setMaterialLinks(
+          Object.fromEntries(
+            links
+              .filter(
+                (item): item is { id: number; url: string } =>
+                  item.url !== null
+              )
+              .map((item) => [item.id, item.url])
+          )
+        );
+      }
+    }
+
+    void loadMaterialLinks();
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId, lesson]);
 
   async function markCompleted() {
     if (completedLessons.includes(lessonId)) {
@@ -196,28 +265,30 @@ export function LessonPage({
         )}
       </div>
 
-      <section className="course-progress">
-        <div className="course-progress-header">
-          <div>
-            <span className="course-progress-label">
-              POSTĘP KURSU
-            </span>
+      {courseId !== -1 && (
+        <section className="course-progress">
+          <div className="course-progress-header">
+            <div>
+              <span className="course-progress-label">
+                POSTĘP KURSU
+              </span>
 
-            <span className="course-progress-count">
-              {completedCount} / {totalLessons} lekcji
-            </span>
+              <span className="course-progress-count">
+                {completedCount} / {totalLessons} lekcji
+              </span>
+            </div>
+
+            <strong>{progress}%</strong>
           </div>
 
-          <strong>{progress}%</strong>
-        </div>
-
-        <div className="course-progress-track">
-          <div
-            className="course-progress-fill"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      </section>
+          <div className="course-progress-track">
+            <div
+              className="course-progress-fill"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </section>
+      )}
 
       <div className="lesson-content-wrapper">
         <article className="lesson-body">
@@ -228,36 +299,85 @@ export function LessonPage({
           ) : (
             <p>Ta lekcja nie ma jeszcze treści.</p>
           )}
+          {lesson.materials?.map((material) => {
+            const link = materialLinks[material.id];
+            if (!link) {
+              if (failedMaterialIds.includes(material.id)) {
+                return (
+                  <p className="status error" key={material.id}>
+                    Nie udało się załadować materiału: {material.name}.
+                  </p>
+                );
+              }
+
+              return (
+                <p className="status" key={material.id}>
+                  Ładowanie materiału: {material.name}...
+                </p>
+              );
+            }
+
+            if (material.kind === "image") {
+              return (
+                <figure className="lesson-material" key={material.id}>
+                  <img src={link} alt={material.name} loading="lazy" />
+                  <figcaption>{material.name}</figcaption>
+                </figure>
+              );
+            }
+
+            if (material.kind === "video") {
+              return (
+                <figure className="lesson-material" key={material.id}>
+                  <video controls preload="metadata">
+                    <source src={link} type={material.contentType} />
+                    Twoja przeglądarka nie obsługuje odtwarzania wideo.
+                  </video>
+                  <figcaption>{material.name}</figcaption>
+                </figure>
+              );
+            }
+
+            return (
+              <p className="lesson-material-link" key={material.id}>
+                <a href={link} target="_blank" rel="noreferrer">
+                  Otwórz plik: {material.name}
+                </a>
+              </p>
+            );
+          })}
         </article>
       </div>
 
-      <div className="lesson-complete">
-        {!isCompleted ? (
-          <button
-            type="button"
-            className="complete-button"
-            onClick={markCompleted}
-          >
-            ✓ Oznacz jako ukończoną
-          </button>
-        ) : (
-          <div className="completed-actions">
-            <div className="lesson-completed">
-              ✓ Lekcja ukończona
-            </div>
-
+      {courseId !== -1 && (
+        <div className="lesson-complete">
+          {!isCompleted ? (
             <button
               type="button"
-              className="undo-complete-button"
-              onClick={undoCompleted}
+              className="complete-button"
+              onClick={markCompleted}
             >
-              ↶ Cofnij ukończenie
+              ✓ Oznacz jako ukończoną
             </button>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="completed-actions">
+              <div className="lesson-completed">
+                ✓ Lekcja ukończona
+              </div>
 
-      {isCourseCompleted && (
+              <button
+                type="button"
+                className="undo-complete-button"
+                onClick={undoCompleted}
+              >
+                ↶ Cofnij ukończenie
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {courseId !== -1 && isCourseCompleted && (
         <div className="course-finished">
           🎉 Kurs ukończony!
         </div>

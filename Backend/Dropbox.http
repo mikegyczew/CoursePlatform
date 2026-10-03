@@ -10,3 +10,11 @@ GET {{baseUrl}}/api/dropbox/callback?code=example&state=invalid
 ### Verify the configured Dropbox connection
 GET {{baseUrl}}/api/dropbox/connection
 Authorization: Bearer {{authToken}}
+
+### List lesson folders from /Ekonomia
+GET {{baseUrl}}/api/dropbox/courses/-1/lessons
+Authorization: Bearer {{authToken}}
+
+### Read the first Dropbox lesson
+GET {{baseUrl}}/api/dropbox/courses/-1/lessons/1
+Authorization: Bearer {{authToken}}
