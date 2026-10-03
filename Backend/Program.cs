@@ -23,6 +23,10 @@ builder.Services.AddScoped<CourseService>();
 builder.Services.AddScoped<LessonService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<LessonProgressService>();
+builder.Services.Configure<DropboxOptions>(
+    builder.Configuration.GetSection("Dropbox")
+);
+builder.Services.AddHttpClient<IDropboxService, DropboxService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException(

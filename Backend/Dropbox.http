@@ -1,0 +1,12 @@
+@baseUrl = https://courseplatform-p8b0.onrender.com
+@authToken = replace-with-a-valid-courseplatform-jwt
+
+### Start Dropbox OAuth setup while signed in to the Dropbox account to connect
+GET {{baseUrl}}/api/dropbox/connect
+
+### Callback without the matching OAuth state cookie is rejected
+GET {{baseUrl}}/api/dropbox/callback?code=example&state=invalid
+
+### Verify the configured Dropbox connection
+GET {{baseUrl}}/api/dropbox/connection
+Authorization: Bearer {{authToken}}
