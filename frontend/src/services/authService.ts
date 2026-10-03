@@ -5,6 +5,8 @@ export interface AuthResponse {
   name: string;
 }
 
+export const AUTH_REQUIRED_EVENT = "auth:required";
+
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").trim();
 const API_URL = API_BASE
   ? `${API_BASE.replace(/\/$/, "")}/api`
@@ -87,4 +89,9 @@ export function getAuthUser() {
 export function logout() {
   localStorage.removeItem("authToken");
   localStorage.removeItem("authUser");
+}
+
+export function handleUnauthorized() {
+  logout();
+  window.dispatchEvent(new Event(AUTH_REQUIRED_EVENT));
 }

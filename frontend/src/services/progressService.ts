@@ -1,4 +1,7 @@
-import { getAuthToken } from "./authService";
+import {
+  getAuthToken,
+  handleUnauthorized,
+} from "./authService";
 
 export interface LessonProgress {
   lessonId: number;
@@ -39,6 +42,10 @@ export async function getCourseProgress(
   if (!response.ok) {
     const responseText = await response.text();
 
+    if (response.status === 401) {
+      handleUnauthorized();
+    }
+
     console.error(
       "GET progress:",
       response.status,
@@ -72,6 +79,10 @@ export async function setLessonCompleted(
 
   if (!response.ok) {
     const responseText = await response.text();
+
+    if (response.status === 401) {
+      handleUnauthorized();
+    }
 
     console.error(
       "PUT progress:",

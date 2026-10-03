@@ -1204,3 +1204,198 @@ body {
 .lesson-page .back-button {
   margin-bottom: 2rem;
 }
+
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0.45rem !important;
+  border-radius: 50%;
+}
+
+.theme-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  background: #f3f7fb;
+}
+
+:root[data-theme="light"] body {
+  background: #f3f7fb;
+  color: #243447;
+}
+
+:root[data-theme="light"] .header {
+  background: linear-gradient(180deg, #ffffff, #eaf3fa);
+  border-color: #b7d4e6;
+  box-shadow: 0 5px 20px rgba(35, 83, 112, 0.1);
+}
+
+:root[data-theme="light"] .header::after {
+  opacity: 0.55;
+}
+
+:root[data-theme="light"] .header h1,
+:root[data-theme="light"] .user-area {
+  color: #183247;
+  text-shadow: none;
+}
+
+:root[data-theme="light"] .header p {
+  color: #58758a;
+}
+
+:root[data-theme="light"] .courses-section h2,
+:root[data-theme="light"] .lessons-section h2 {
+  color: #126c99;
+  text-shadow: none;
+}
+
+:root[data-theme="light"] .status,
+:root[data-theme="light"] .course-card,
+:root[data-theme="light"] .lesson-card,
+:root[data-theme="light"] .progress-container,
+:root[data-theme="light"] .course-progress,
+:root[data-theme="light"] .lesson-nav-button,
+:root[data-theme="light"] .login-card {
+  background: #ffffff;
+  border-color: #c9dce8;
+  box-shadow: 0 8px 22px rgba(35, 83, 112, 0.08);
+}
+
+:root[data-theme="light"] .status {
+  color: #49677d;
+}
+
+:root[data-theme="light"] .status.error {
+  color: #a8323e;
+  background: #fff1f1;
+  border-color: #edbfc2;
+}
+
+:root[data-theme="light"] .course-card-image {
+  filter: none;
+}
+
+:root[data-theme="light"] .course-card-category {
+  color: #0878aa;
+  background: #eaf7fc;
+  border-color: #a8d7e9;
+}
+
+:root[data-theme="light"] .course-card h2,
+:root[data-theme="light"] .course-page h1,
+:root[data-theme="light"] .lesson-page h1,
+:root[data-theme="light"] .lesson-title,
+:root[data-theme="light"] .lesson-body h2,
+:root[data-theme="light"] .lesson-body h3,
+:root[data-theme="light"] .courses-section h2,
+:root[data-theme="light"] .lessons-section h2 {
+  color: #126c99 !important;
+  text-shadow: none;
+}
+
+:root[data-theme="light"] .course-card p,
+:root[data-theme="light"] .course-page-description,
+:root[data-theme="light"] .lesson-description,
+:root[data-theme="light"] .lesson-body,
+:root[data-theme="light"] .lesson-body p,
+:root[data-theme="light"] .lesson-body li,
+:root[data-theme="light"] .lesson-content p,
+:root[data-theme="light"] .lesson-content h3,
+:root[data-theme="light"] .lesson-nav-button,
+:root[data-theme="light"] .lesson-nav-button strong,
+:root[data-theme="light"] .lesson-page h2,
+:root[data-theme="light"] .lesson-page h3,
+:root[data-theme="light"] .lesson-page h4,
+:root[data-theme="light"] .lesson-page strong,
+:root[data-theme="light"] .lesson-page .lesson-description,
+:root[data-theme="light"] .lesson-page .lesson-body,
+:root[data-theme="light"] .lesson-page .lesson-body p,
+:root[data-theme="light"] .lesson-page .lesson-body li,
+:root[data-theme="light"] .lesson-page .lesson-nav-button strong,
+:root[data-theme="light"] .lesson-page .course-progress-count,
+:root[data-theme="light"] .lesson-page .course-progress-header strong,
+:root[data-theme="light"] .lesson-page .lesson-completed,
+:root[data-theme="light"] .lesson-page .course-finished {
+  color: #34495b !important;
+}
+
+:root[data-theme="light"] .lesson-number,
+:root[data-theme="light"] .lesson-arrow,
+:root[data-theme="light"] .progress-info strong,
+:root[data-theme="light"] .course-progress-label,
+:root[data-theme="light"] .course-progress-header strong,
+:root[data-theme="light"] .lesson-nav-button span,
+:root[data-theme="light"] .lesson-body h2 {
+  color: #087eae !important;
+}
+
+:root[data-theme="light"] .progress-info,
+:root[data-theme="light"] .progress-details,
+:root[data-theme="light"] .course-progress-count {
+  color: #627b8d;
+}
+
+:root[data-theme="light"] .progress-bar,
+:root[data-theme="light"] .course-progress-track {
+  background: #e2edf3;
+}
+
+:root[data-theme="light"] .lesson-body code {
+  color: #24546c;
+  background: #eaf7fc;
+  border-color: #c4e4f0;
+}
+
+:root[data-theme="light"] .lesson-completed {
+  color: #087eae;
+  background: #e8f7fc;
+}
+
+:root[data-theme="light"] .login-card h2,
+:root[data-theme="light"] .login-header h1 {
+  color: #126c99;
+}
+
+:root[data-theme="light"] .login-header p,
+:root[data-theme="light"] .login-card label {
+  color: #34495b;
+}
+
+:root[data-theme="light"] .login-card input {
+  color: #243447;
+  background: #f8fbfd;
+  border-color: #c9dce8;
+}
+
+:root[data-theme="light"] .login-switch,
+:root[data-theme="light"] .undo-complete-button {
+  color: #627b8d;
+}
+
+:root[data-theme="light"] .back-button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid #b7d4e6;
+  background: #ffffff;
+  color: #126c99;
+  cursor: pointer;
+}
+
+:root[data-theme="light"] .course-page-category,
+:root[data-theme="light"] .lesson-number-large {
+  color: #0878aa;
+}
+
+:root[data-theme="light"] .user-area .theme-toggle {
+  color: #126c99;
+  border-color: #b7d4e6;
+}
+
+:root[data-theme="light"] .user-area .theme-toggle:hover {
+  background: #e5f3fa;
+}
