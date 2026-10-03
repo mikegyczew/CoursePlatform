@@ -20,13 +20,47 @@ async function fetchDropboxJson<T>(url: string): Promise<T> {
   }
 
   if (!response.ok) {
-    const message =
-      response.status === 503
-        ? "Dropbox nie jest skonfigurowany w backendzie."
-        : response.status === 502
-          ? "Backend nie może odczytać folderu Dropbox."
-          : "Nie udało się pobrać materiałów z Dropboxa.";
-    throw new Error(message);
+    if (response.status === 403) {
+      throw new Error(
+        "Dropbox nie pozwala na dostęp do folderu. Sprawdź uprawnienia aplikacji i folderu."
+      );
+    }
+
+    if (response.status === 404) {
+      throw new Error(
+        "Nie znaleziono folderu kursu w Dropboxie. Sprawdź Dropbox__RootFolder, np. /Ekonomia."
+      );
+    }
+
+    if (response.status === 503) {
+      const problem = await response.json().catch(() => null) as
+        | { title?: string; detail?: string }
+        | null;
+
+      if (problem?.title?.includes("permissions")) {
+        throw new Error(
+          "Brakuje uprawnień Dropbox API. Włącz wymagane zakresy i połącz aplikację ponownie, używając nowego refresh tokenu."
+        );
+      }
+
+      if (problem?.title?.includes("authorization")) {
+        throw new Error(
+          "Autoryzacja Dropbox wygasła lub jest nieprawidłowa. Połącz aplikację ponownie i zaktualizuj refresh token."
+        );
+      }
+
+      throw new Error(
+        "Dropbox nie jest skonfigurowany w backendzie."
+      );
+    }
+
+    if (response.status === 502) {
+      throw new Error(
+        "Dropbox odrzucił żądanie. Sprawdź logi backendu."
+      );
+    }
+
+    throw new Error("Nie udało się pobrać materiałów z Dropboxa.");
   }
 
   return response.json();

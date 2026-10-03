@@ -142,6 +142,10 @@ public sealed class DropboxController(
                 title: "Dropbox token exchange failed."
             );
         }
+        catch (DropboxApiException exception)
+        {
+            return DropboxFailure(exception, "Dropbox token exchange failed.");
+        }
     }
 
     /// <summary>Checks the Dropbox account connected to this backend.</summary>
@@ -183,12 +187,17 @@ public sealed class DropboxController(
                 title: "Dropbox connection check failed."
             );
         }
+        catch (DropboxApiException exception)
+        {
+            return DropboxFailure(exception, "Dropbox connection check failed.");
+        }
     }
 
     /// <summary>Lists lesson folders inside the configured Dropbox course.</summary>
     [Authorize]
     [HttpGet("courses/{courseId:int}/lessons")]
     [ProducesResponseType(typeof(IReadOnlyList<DropboxLessonResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status502BadGateway)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
@@ -224,12 +233,17 @@ public sealed class DropboxController(
                 title: "Could not list Dropbox lessons."
             );
         }
+        catch (DropboxApiException exception)
+        {
+            return DropboxFailure(exception, "Dropbox lesson listing failed.");
+        }
     }
 
     /// <summary>Returns a Dropbox lesson and its text and media materials.</summary>
     [Authorize]
     [HttpGet("courses/{courseId:int}/lessons/{lessonId:int}")]
     [ProducesResponseType(typeof(DropboxLessonResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status502BadGateway)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
@@ -268,12 +282,17 @@ public sealed class DropboxController(
                 title: "Could not retrieve the Dropbox lesson."
             );
         }
+        catch (DropboxApiException exception)
+        {
+            return DropboxFailure(exception, "Dropbox lesson retrieval failed.");
+        }
     }
 
     /// <summary>Gets a short-lived URL to display or download a lesson file.</summary>
     [Authorize]
     [HttpGet("courses/{courseId:int}/lessons/{lessonId:int}/files/{fileId:int}/link")]
     [ProducesResponseType(typeof(DropboxTemporaryLinkResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status502BadGateway)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
@@ -316,5 +335,75 @@ public sealed class DropboxController(
                 title: "Could not get a Dropbox file link."
             );
         }
+        catch (DropboxApiException exception)
+        {
+            return DropboxFailure(exception, "Dropbox file link request failed.");
+        }
+    }
+
+    private ObjectResult DropboxFailure(
+        DropboxApiException exception,
+        string logMessage
+    )
+    {
+        logger.LogWarning(exception, "{DropboxOperation}", logMessage);
+
+        if (
+            exception.ErrorSummary.Contains(
+                "missing_scope",
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
+        {
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Dropbox app permissions are incomplete.",
+                detail: "Enable the required Dropbox API scope, authorize the app again, and update Dropbox__RefreshToken in the hosting environment."
+            );
+        }
+
+        if (exception.StatusCode == StatusCodes.Status401Unauthorized)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Dropbox authorization is invalid or expired.",
+                detail: "Reconnect the Dropbox app and update Dropbox__RefreshToken in the hosting environment."
+            );
+        }
+
+        if (
+            exception.ErrorSummary.Contains(
+                "path/not_found",
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
+        {
+            return Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Dropbox course folder was not found.",
+                detail: "Check that Dropbox__RootFolder points to an existing folder inside the connected app folder; for example, /Ekonomia."
+            );
+        }
+
+        if (
+            exception.ErrorSummary.Contains(
+                "no_permission",
+                StringComparison.OrdinalIgnoreCase
+            )
+            || exception.StatusCode == StatusCodes.Status403Forbidden
+        )
+        {
+            return Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Dropbox does not allow access to this folder.",
+                detail: "Check the Dropbox app access type and folder sharing permissions."
+            );
+        }
+
+        return Problem(
+            statusCode: StatusCodes.Status502BadGateway,
+            title: "Dropbox rejected the request.",
+            detail: "Check the backend logs for the Dropbox error and request ID."
+        );
     }
 }

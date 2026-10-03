@@ -533,14 +533,10 @@ public sealed class DropboxService(
                 ? errorContent
                 : $"{errorContent[..1000]} [truncated]";
         var details = errorSummary ?? bodyDetails;
-        var requestDetails = requestId is null
-            ? string.Empty
-            : $" Request ID: {requestId}.";
-
-        throw new HttpRequestException(
-            $"Dropbox API returned {(int)response.StatusCode} ({response.StatusCode}): {details}.{requestDetails}",
-            null,
-            response.StatusCode
+        throw new DropboxApiException(
+            (int)response.StatusCode,
+            details,
+            requestId
         );
     }
 
