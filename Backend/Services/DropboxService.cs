@@ -527,7 +527,12 @@ public sealed class DropboxService(
         )
             ? requestIds.FirstOrDefault()
             : null;
-        var details = errorSummary ?? "Dropbox did not provide an error summary.";
+        var bodyDetails = string.IsNullOrWhiteSpace(errorContent)
+            ? "empty response body"
+            : errorContent.Length <= 1000
+                ? errorContent
+                : $"{errorContent[..1000]} [truncated]";
+        var details = errorSummary ?? bodyDetails;
         var requestDetails = requestId is null
             ? string.Empty
             : $" Request ID: {requestId}.";
