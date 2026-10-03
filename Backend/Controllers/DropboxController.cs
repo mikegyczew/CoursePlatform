@@ -199,6 +199,7 @@ public sealed class DropboxController(
     [ProducesResponseType(typeof(IReadOnlyList<DropboxLessonResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status502BadGateway)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<IReadOnlyList<DropboxLessonResponse>>> GetLessons(
@@ -285,6 +286,18 @@ public sealed class DropboxController(
         catch (DropboxApiException exception)
         {
             return DropboxFailure(exception, "Dropbox lesson retrieval failed.");
+        }
+        catch (DropboxLessonContentException exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Dropbox lesson content could not be read."
+            );
+            return Problem(
+                statusCode: StatusCodes.Status422UnprocessableEntity,
+                title: "Lesson PDF could not be converted to text.",
+                detail: "Check that content.pdf is a valid PDF with selectable text. Scanned PDFs need OCR."
+            );
         }
     }
 

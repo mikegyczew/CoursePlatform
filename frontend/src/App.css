@@ -767,14 +767,6 @@ body {
   background: rgba(0, 0, 0, 0.25);
 }
 
-.lesson-material-pdf {
-  display: block;
-  width: 100%;
-  height: min(80vh, 1000px);
-  border: 0;
-  background: #ffffff;
-}
-
 .lesson-material figcaption {
   margin-top: 0.5rem;
   color: #8fb4c7;

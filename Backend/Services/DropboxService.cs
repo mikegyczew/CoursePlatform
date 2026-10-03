@@ -1,8 +1,11 @@
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Backend.DTOs;
 using Microsoft.Extensions.Options;
+using UglyToad.PdfPig;
+using UglyToad.PdfPig.Core;
 
 namespace Backend.Services;
 
@@ -28,6 +31,7 @@ public sealed class DropboxService(
     private const int DropboxCourseId = -1;
     private const int MaxTextFileBytes = 1_048_576;
     private const int MaxLessonTextBytes = 3_145_728;
+    private const int MaxContentPdfBytes = 10_485_760;
 
     private static readonly JsonSerializerOptions JsonOptions =
         new(JsonSerializerDefaults.Web);
@@ -174,7 +178,10 @@ public sealed class DropboxService(
 
         var textFiles = files
             .Select((entry, index) => (entry, id: index + 1))
-            .Where(item => IsTextFile(item.entry.Name))
+            .Where(item =>
+                IsTextFile(item.entry.Name)
+                && !IsContentPdf(item.entry.Name)
+            )
             .ToArray();
         var totalTextBytes = 0;
         var contentParts = new List<string>();
@@ -200,9 +207,48 @@ public sealed class DropboxService(
             contentParts.Add($"## {entry.Name}\n\n{text}");
         }
 
+        var contentPdf = files.FirstOrDefault(
+            entry => IsContentPdf(entry.Name)
+        );
+        if (contentPdf is not null)
+        {
+            var pdfBytes = await DownloadFileAsync(
+                contentPdf.PathDisplay,
+                cancellationToken,
+                MaxContentPdfBytes
+            );
+            var pdfText = ExtractPdfText(pdfBytes);
+            if (pdfText.Length == 0)
+            {
+                contentParts.Insert(
+                    0,
+                    "Plik `content.pdf` nie zawiera tekstu możliwego do odczytania. "
+                        + "Jeśli to skan, potrzebne jest rozpoznawanie OCR."
+                );
+            }
+            else
+            {
+                var combinedTextLength =
+                    contentParts.Sum(part => part.Length)
+                    + pdfText.Length
+                    + (contentParts.Count * 2);
+                if (combinedTextLength > MaxLessonTextBytes)
+                {
+                    throw new DropboxLessonContentException(
+                        "The combined lesson text exceeds the supported size limit."
+                    );
+                }
+
+                contentParts.Insert(0, pdfText);
+            }
+        }
+
         var materials = files
             .Select((entry, index) => (entry, id: index + 1))
-            .Where(item => !IsTextFile(item.entry.Name))
+            .Where(item =>
+                !IsTextFile(item.entry.Name)
+                && !IsContentPdf(item.entry.Name)
+            )
             .Select(item =>
             {
                 var (kind, contentType) = GetFilePresentation(item.entry.Name);
@@ -386,7 +432,8 @@ public sealed class DropboxService(
 
     private async Task<byte[]> DownloadFileAsync(
         string path,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        int maxBytes = MaxTextFileBytes
     )
     {
         var accessToken = await GetAccessTokenAsync(cancellationToken);
@@ -411,10 +458,11 @@ public sealed class DropboxService(
             cancellationToken
         );
 
-        if (response.Content.Headers.ContentLength is > MaxTextFileBytes)
+        if (response.Content.Headers.ContentLength is long contentLength
+            && contentLength > maxBytes)
         {
-            throw new InvalidOperationException(
-                "Dropbox text file exceeds the supported size limit."
+            throw new DropboxLessonContentException(
+                "Dropbox file exceeds the supported size limit."
             );
         }
 
@@ -432,10 +480,10 @@ public sealed class DropboxService(
             )) > 0
         )
         {
-            if (buffer.Length + bytesRead > MaxTextFileBytes)
+            if (buffer.Length + bytesRead > maxBytes)
             {
-                throw new InvalidOperationException(
-                    "Dropbox text file exceeds the supported size limit."
+                throw new DropboxLessonContentException(
+                    "Dropbox file exceeds the supported size limit."
                 );
             }
 
@@ -487,6 +535,53 @@ public sealed class DropboxService(
 
     private static bool IsTextFile(string name) =>
         Path.GetExtension(name).ToLowerInvariant() is ".txt" or ".md" or ".markdown";
+
+    private static bool IsContentPdf(string name) =>
+        string.Equals(name, "content.pdf", StringComparison.OrdinalIgnoreCase);
+
+    private static string ExtractPdfText(byte[] pdfBytes)
+    {
+        if (
+            pdfBytes.Length < 5
+            || !pdfBytes.AsSpan(0, 5).SequenceEqual("%PDF-"u8)
+        )
+        {
+            throw new DropboxLessonContentException(
+                "The content.pdf file is not a valid PDF."
+            );
+        }
+
+        try
+        {
+            using var document = PdfDocument.Open(pdfBytes);
+            var content = new StringBuilder();
+
+            foreach (var page in document.GetPages())
+            {
+                if (content.Length > 0)
+                {
+                    content.AppendLine().AppendLine();
+                }
+
+                content.Append(page.Text);
+                if (content.Length > MaxLessonTextBytes)
+                {
+                    throw new DropboxLessonContentException(
+                        "The extracted PDF text exceeds the supported size limit."
+                    );
+                }
+            }
+
+            return content.ToString().Trim();
+        }
+        catch (PdfDocumentFormatException exception)
+        {
+            throw new DropboxLessonContentException(
+                "The content.pdf file could not be read.",
+                exception
+            );
+        }
+    }
 
     private static async Task EnsureDropboxSuccessStatusCodeAsync(
         HttpResponseMessage response,

@@ -16,5 +16,6 @@ GET {{baseUrl}}/api/dropbox/courses/-1/lessons
 Authorization: Bearer {{authToken}}
 
 ### Read the first Dropbox lesson
+# In each lesson folder, content.pdf is extracted as lesson text (selectable text only; no OCR).
 GET {{baseUrl}}/api/dropbox/courses/-1/lessons/1
 Authorization: Bearer {{authToken}}

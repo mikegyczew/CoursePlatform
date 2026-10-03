@@ -236,10 +236,6 @@ export function LessonPage({
   const isCourseCompleted =
     totalLessons > 0 &&
     completedCount === totalLessons;
-  const hasPdfMaterial = lesson.materials?.some(
-    (material) => material.contentType === "application/pdf"
-  ) ?? false;
-
   return (
     <main className="container lesson-page">
       <button
@@ -299,9 +295,9 @@ export function LessonPage({
             <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
               {lesson.content}
             </ReactMarkdown>
-          ) : !hasPdfMaterial ? (
-            <p>Ta lekcja nie ma jeszcze treści.</p>
-          ) : null}
+          ) : (
+            <p>Nie dodano jeszcze treści do tej lekcji.</p>
+          )}
           {lesson.materials?.map((material) => {
             const link = materialLinks[material.id];
             if (!link) {
@@ -317,25 +313,6 @@ export function LessonPage({
                 <p className="status" key={material.id}>
                   Ładowanie materiału: {material.name}...
                 </p>
-              );
-            }
-
-            if (material.contentType === "application/pdf") {
-              return (
-                <figure className="lesson-material" key={material.id}>
-                  <iframe
-                    className="lesson-material-pdf"
-                    src={link}
-                    title={material.name}
-                    loading="lazy"
-                  />
-                  <figcaption>
-                    {material.name} —{" "}
-                    <a href={link} target="_blank" rel="noreferrer">
-                      Otwórz PDF w nowej karcie
-                    </a>
-                  </figcaption>
-                </figure>
               );
             }
 
