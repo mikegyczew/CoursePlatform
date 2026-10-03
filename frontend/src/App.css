@@ -967,11 +967,18 @@ body {
    ========================= */
 
 .login-page {
+  position: relative;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2rem;
+}
+
+.login-page > .theme-toggle {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
 }
 
 .login-card {

@@ -4,12 +4,19 @@ import {
   register,
   saveAuth,
 } from "../services/authService";
+import { ThemeToggle, type Theme } from "../components/ThemeToggle";
 
 interface LoginPageProps {
   onLogin: () => void;
+  theme: Theme;
+  onToggleTheme: () => void;
 }
 
-export function LoginPage({ onLogin }: LoginPageProps) {
+export function LoginPage({
+  onLogin,
+  theme,
+  onToggleTheme,
+}: LoginPageProps) {
   const [registerMode, setRegisterMode] = useState(false);
 
   const [name, setName] = useState("");
@@ -47,6 +54,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
   return (
     <main className="login-page">
+      <ThemeToggle theme={theme} onToggle={onToggleTheme} />
       <div className="login-card">
         <div className="login-header">
           <h1>Platforma kursów online</h1>
