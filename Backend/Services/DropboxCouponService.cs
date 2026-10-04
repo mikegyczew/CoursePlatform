@@ -10,8 +10,7 @@ namespace Backend.Services;
 
 public sealed class DropboxCouponService(
     CourseDbContext dbContext,
-    IOptions<DropboxOptions> options,
-    IPaymentService paymentService
+    IOptions<DropboxOptions> options
 )
 {
     private const string TestCouponCode = "kuponTest";
@@ -83,29 +82,61 @@ public sealed class DropboxCouponService(
         var hasActiveCoupon = redemptions.Any(
             item => item.ExpiresAt is null || item.ExpiresAt > now
         );
-        var paidAccess = await paymentService.GetPaidAccessAsync(
-            userId,
-            cancellationToken
-        );
         var couponExpiry = redemptions
             .Where(item => item.ExpiresAt > now)
             .MaxBy(item => item.ExpiresAt)
             ?.ExpiresAt;
-        var activeExpiry = new[] { couponExpiry, paidAccess.ExpiresAt }
-            .Where(expiry => expiry is not null)
-            .Max();
         var hasPermanentCoupon = redemptions.Any(
             item => item.ExpiresAt is null
         );
 
         return new DropboxTrialAccessResponse(
             redemptions.Count > 0,
-            hasActiveCoupon || paidAccess.HasAccess,
-            paidAccess.HasAccess && paidAccess.ExpiresAt is null
-                || hasPermanentCoupon
-                ? null
-                : activeExpiry
+            hasActiveCoupon,
+            hasPermanentCoupon ? null : couponExpiry
         );
+    }
+
+    public async Task<DropboxTrialAccessResponse> CreateAndRedeemPurchaseCouponAsync(
+        int userId,
+        DropboxCouponType type,
+        CancellationToken cancellationToken
+    )
+    {
+        if (type is not (
+            DropboxCouponType.Week
+            or DropboxCouponType.Month
+            or DropboxCouponType.Forever
+        ))
+        {
+            throw new ArgumentOutOfRangeException(nameof(type));
+        }
+
+        var code = GenerateCode();
+        var redeemedAt = DateTime.UtcNow;
+        var coupon = new DropboxCoupon
+        {
+            CodeHash = HashCode(code),
+            Type = type,
+            IsSharedTest = false,
+            IsRedeemed = true
+        };
+        dbContext.DropboxCoupons.Add(coupon);
+
+        await using var transaction = await dbContext.Database
+            .BeginTransactionAsync(cancellationToken);
+        dbContext.DropboxCouponRedemptions.Add(new DropboxCouponRedemption
+        {
+            Coupon = coupon,
+            UserId = userId,
+            RedeemedAt = redeemedAt,
+            ExpiresAt = GetExpiry(type, redeemedAt)
+        });
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return await GetStatusAsync(userId, cancellationToken);
     }
 
     public async Task<DropboxCouponRedemptionResult> RedeemAsync(

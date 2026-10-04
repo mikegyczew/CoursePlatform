@@ -1,8 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
 using Backend.DTOs;
+using Backend.Models;
 using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Backend.Controllers;
 
@@ -10,7 +12,9 @@ namespace Backend.Controllers;
 [Authorize]
 [Route("api/dropbox/access")]
 public sealed class DropboxAccessController(
-    DropboxCouponService couponService
+    DropboxCouponService couponService,
+    IPaymentService paymentService,
+    IOptions<DropboxPricingOptions> pricingOptions
 ) : ControllerBase
 {
     [HttpGet]
@@ -30,6 +34,74 @@ public sealed class DropboxAccessController(
             userId.Value,
             cancellationToken
         ));
+    }
+
+    [HttpGet("plans")]
+    [ProducesResponseType(typeof(DropboxPurchasePlansResponse), StatusCodes.Status200OK)]
+    public ActionResult<DropboxPurchasePlansResponse> GetPurchasePlans()
+    {
+        var pricing = pricingOptions.Value;
+        return Ok(new DropboxPurchasePlansResponse(
+            WeekAvailable: true,
+            MonthAvailable: true,
+            ForeverAvailable: true,
+            WeekPricePln: pricing.WeeklyPricePln,
+            MonthPricePln: pricing.MonthlyPricePln,
+            ForeverPricePln: pricing.ForeverPricePln
+        ));
+    }
+
+    [HttpPost("purchase")]
+    [ProducesResponseType(typeof(DropboxTrialAccessResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status402PaymentRequired)]
+    public async Task<ActionResult<DropboxTrialAccessResponse>> Purchase(
+        [FromBody] DropboxPurchaseRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        var userId = GetUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var type = request.Type?.Trim().ToLowerInvariant() switch
+        {
+            "week" => DropboxCouponType.Week,
+            "month" => DropboxCouponType.Month,
+            "forever" => DropboxCouponType.Forever,
+            _ => (DropboxCouponType?)null
+        };
+        if (type is null)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Wybierz tydzień, miesiąc lub dostęp bezterminowy."
+            );
+        }
+
+        var paymentSucceeded = await paymentService.ProcessPaymentAsync(
+            userId.Value,
+            type.Value,
+            cancellationToken
+        );
+        if (!paymentSucceeded)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status402PaymentRequired,
+                title: "Płatność nie została zaakceptowana."
+            );
+        }
+
+        var access = await couponService.CreateAndRedeemPurchaseCouponAsync(
+            userId.Value,
+            type.Value,
+            cancellationToken
+        );
+        Response.Headers.CacheControl = "no-store";
+        return Ok(access);
     }
 
     [HttpPost("redeem")]

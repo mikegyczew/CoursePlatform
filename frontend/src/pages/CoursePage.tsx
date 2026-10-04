@@ -6,7 +6,7 @@ import {
   getDropboxPurchasePlans,
   getDropboxTrialAccess,
   redeemDropboxCoupon,
-  startDropboxCheckout,
+  startDropboxPurchase,
   type DropboxTrialAccess,
   type DropboxPurchasePlan,
   type DropboxPurchasePlans,
@@ -18,6 +18,11 @@ interface CoursePageProps {
   onBack: () => void;
   onLessonClick: (lessonId: number) => void;
 }
+
+const priceFormatter = new Intl.NumberFormat("pl-PL", {
+  style: "currency",
+  currency: "PLN",
+});
 
 export function CoursePage({
   course,
@@ -34,9 +39,10 @@ export function CoursePage({
   const [coupon, setCoupon] = useState("");
   const [couponError, setCouponError] = useState<string | null>(null);
   const [redeemingCoupon, setRedeemingCoupon] = useState(false);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [checkoutPlan, setCheckoutPlan] =
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [processingPlan, setProcessingPlan] =
     useState<DropboxPurchasePlan | null>(null);
+  const [purchaseConfirmed, setPurchaseConfirmed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,27 +138,35 @@ export function CoursePage({
   }
 
   async function handlePurchase(type: DropboxPurchasePlan) {
-    setCheckoutError(null);
-    setCheckoutPlan(type);
+    setPurchaseError(null);
+    setProcessingPlan(type);
 
     try {
-      const checkoutUrl = await startDropboxCheckout(type);
-      window.location.assign(checkoutUrl);
+      const access = await startDropboxPurchase(type);
+      setTrialAccess(access);
+      setPurchaseConfirmed(true);
+      setLoading(true);
+      try {
+        setLessons(await getLessons(course.id));
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Nie udało się pobrać lekcji."
+        );
+      } finally {
+        setLoading(false);
+      }
     } catch (err) {
-      setCheckoutError(
+      setPurchaseError(
         err instanceof Error
           ? err.message
-          : "Nie udało się rozpocząć płatności."
+          : "Nie udało się aktywować dostępu."
       );
-      setCheckoutPlan(null);
+    } finally {
+      setProcessingPlan(null);
     }
   }
-
-  const hasPurchasePlans = Boolean(
-    purchasePlans?.weekAvailable
-      || purchasePlans?.monthAvailable
-      || purchasePlans?.foreverAvailable
-  );
 
   const canListLessons =
     course.id !== -1 || trialAccess?.hasAccess === true;
@@ -245,51 +259,57 @@ export function CoursePage({
               </p>
             )}
 
-            {hasPurchasePlans ? (
+            {purchaseConfirmed && (
+              <p className="status">
+                Testowa płatność została zaakceptowana, a kupon automatycznie
+                aktywowany. Żadna opłata nie została pobrana.
+              </p>
+            )}
+
+            {purchasePlans && (
               <div className="purchase-options">
-                <h3>Kup dostęp do szkolenia</h3>
+                <h3>Wybierz okres dostępu</h3>
+                <p className="status">
+                  Tryb testowy: płatność jest akceptowana automatycznie i nie
+                  pobieramy opłaty.
+                </p>
                 {purchasePlans?.weekAvailable && (
                   <button
                     type="button"
-                    disabled={checkoutPlan !== null}
+                    disabled={processingPlan !== null}
                     onClick={() => void handlePurchase("week")}
                   >
-                    {checkoutPlan === "week"
-                      ? "Przechodzę do płatności..."
-                      : "Kup dostęp na tydzień"}
+                    {processingPlan === "week"
+                      ? "Aktywuję dostęp..."
+                      : `Aktywuj dostęp na tydzień · ${priceFormatter.format(purchasePlans.weekPricePln)}`}
                   </button>
                 )}
                 {purchasePlans?.monthAvailable && (
                   <button
                     type="button"
-                    disabled={checkoutPlan !== null}
+                    disabled={processingPlan !== null}
                     onClick={() => void handlePurchase("month")}
                   >
-                    {checkoutPlan === "month"
-                      ? "Przechodzę do płatności..."
-                      : "Kup dostęp na miesiąc"}
+                    {processingPlan === "month"
+                      ? "Aktywuję dostęp..."
+                      : `Aktywuj dostęp na miesiąc · ${priceFormatter.format(purchasePlans.monthPricePln)}`}
                   </button>
                 )}
                 {purchasePlans?.foreverAvailable && (
                   <button
                     type="button"
-                    disabled={checkoutPlan !== null}
+                    disabled={processingPlan !== null}
                     onClick={() => void handlePurchase("forever")}
                   >
-                    {checkoutPlan === "forever"
-                      ? "Przechodzę do płatności..."
-                      : "Kup dostęp bezterminowy"}
+                    {processingPlan === "forever"
+                      ? "Aktywuję dostęp..."
+                      : `Aktywuj dostęp bezterminowy · ${priceFormatter.format(purchasePlans.foreverPricePln)}`}
                   </button>
                 )}
               </div>
-            ) : (
-              <p className="status">
-                Zakupy online zostaną włączone po skonfigurowaniu testowych
-                produktów Stripe.
-              </p>
             )}
-            {checkoutError && (
-              <p className="status error">{checkoutError}</p>
+            {purchaseError && (
+              <p className="status error">{purchaseError}</p>
             )}
           </section>
         )}

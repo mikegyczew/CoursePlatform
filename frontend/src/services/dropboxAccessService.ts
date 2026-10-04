@@ -20,6 +20,9 @@ export interface DropboxPurchasePlans {
   weekAvailable: boolean;
   monthAvailable: boolean;
   foreverAvailable: boolean;
+  weekPricePln: number;
+  monthPricePln: number;
+  foreverPricePln: number;
 }
 
 async function requestAccess(
@@ -81,7 +84,7 @@ export async function getDropboxPurchasePlans(): Promise<DropboxPurchasePlans> {
     throw new Error("Zaloguj się, aby sprawdzić metody zakupu.");
   }
 
-  const response = await fetch(`${API_URL}/payments/stripe/plans`, {
+  const response = await fetch(`${API_URL}/dropbox/access/plans`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -96,15 +99,15 @@ export async function getDropboxPurchasePlans(): Promise<DropboxPurchasePlans> {
   return response.json();
 }
 
-export async function startDropboxCheckout(
+export async function startDropboxPurchase(
   type: DropboxPurchasePlan
-): Promise<string> {
+): Promise<DropboxTrialAccess> {
   const token = getAuthToken();
   if (!token) {
     throw new Error("Zaloguj się, aby kupić dostęp do szkolenia.");
   }
 
-  const response = await fetch(`${API_URL}/payments/stripe/checkout`, {
+  const response = await fetch(`${API_URL}/dropbox/access/purchase`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -122,10 +125,9 @@ export async function startDropboxCheckout(
       | { title?: string }
       | null;
     throw new Error(
-      problem?.title ?? "Nie udało się rozpocząć płatności."
+      problem?.title ?? "Nie udało się aktywować dostępu."
     );
   }
 
-  const result = await response.json() as { url: string };
-  return result.url;
+  return response.json();
 }

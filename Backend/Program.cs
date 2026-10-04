@@ -25,14 +25,19 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<LessonProgressService>();
 builder.Services.AddScoped<DropboxLessonProgressService>();
 builder.Services.AddScoped<DropboxCouponService>();
-builder.Services.Configure<StripeOptions>(
-    builder.Configuration.GetSection("Stripe")
-);
 builder.Services.Configure<DropboxOptions>(
     builder.Configuration.GetSection("Dropbox")
 );
+builder.Services
+    .AddOptions<DropboxPricingOptions>()
+    .Bind(builder.Configuration.GetSection("DropboxPricing"))
+    .Validate(
+        options => options.WeeklyPricePln > 0,
+        "Dropbox weekly price must be greater than zero."
+    )
+    .ValidateOnStart();
 builder.Services.AddHttpClient<IDropboxService, DropboxService>();
-builder.Services.AddHttpClient<IPaymentService, StripePaymentService>();
+builder.Services.AddScoped<IPaymentService, MockPaymentService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException(

@@ -36,12 +36,7 @@ services:
       Dropbox__RedirectUri: ${DROPBOX_REDIRECT_URI:-http://localhost:8080/api/dropbox/callback}
       Dropbox__RootFolder: ${DROPBOX_ROOT_FOLDER:-/Ekonomia}
       Dropbox__CouponAdminKey: ${DROPBOX_COUPON_ADMIN_KEY:-}
-      Stripe__SecretKey: ${STRIPE_SECRET_KEY:-}
-      Stripe__WebhookSecret: ${STRIPE_WEBHOOK_SECRET:-}
-      Stripe__FrontendBaseUrl: ${STRIPE_FRONTEND_BASE_URL:-http://localhost:3000}
-      Stripe__WeekPriceId: ${STRIPE_WEEK_PRICE_ID:-}
-      Stripe__MonthPriceId: ${STRIPE_MONTH_PRICE_ID:-}
-      Stripe__ForeverPriceId: ${STRIPE_FOREVER_PRICE_ID:-}
+      DropboxPricing__WeeklyPricePln: ${DROPBOX_WEEKLY_PRICE_PLN:-50}
       Cors__AllowedOrigins__0: http://localhost:3000
     ports:
       - "8080:8080"
