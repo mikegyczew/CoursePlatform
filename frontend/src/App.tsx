@@ -23,6 +23,14 @@ function getInitialTheme(): Theme {
 }
 
 function App() {
+  const [paymentReturn] = useState<
+    "success" | "cancelled" | null
+  >(() => {
+    const result = new URLSearchParams(window.location.search).get("payment");
+    return result === "success" || result === "cancelled"
+      ? result
+      : null;
+  });
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [loggedIn, setLoggedIn] = useState(
     Boolean(localStorage.getItem("authToken"))
@@ -45,6 +53,12 @@ function App() {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (paymentReturn) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [paymentReturn]);
 
   useEffect(() => {
     function handleAuthRequired() {
@@ -230,6 +244,18 @@ function App() {
       <main className="container">
         <section className="courses-section">
           <h2>Dostępne kursy</h2>
+
+          {paymentReturn === "success" && (
+            <p className="status">
+              Dziękujemy za płatność. Stripe potwierdza transakcję; po
+              chwili otwórz szkolenie Dropbox, aby sprawdzić dostęp.
+            </p>
+          )}
+          {paymentReturn === "cancelled" && (
+            <p className="status">
+              Płatność została anulowana. Nie pobraliśmy opłaty.
+            </p>
+          )}
 
           {loading && (
             <p className="status">

@@ -819,6 +819,34 @@ body {
   cursor: wait;
 }
 
+.purchase-options {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.5rem auto 0;
+}
+
+.purchase-options h3 {
+  margin: 0.5rem 0;
+  color: #bdeaff;
+}
+
+.purchase-options button {
+  width: min(100%, 28rem);
+  padding: 0.85rem;
+  border: 1px solid #00bfff;
+  background: rgba(0, 191, 255, 0.1);
+  color: #00bfff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.purchase-options button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 :root[data-theme="light"] .coupon-form label {
   color: #34495b;
 }
@@ -830,6 +858,15 @@ body {
 }
 
 :root[data-theme="light"] .coupon-form button {
+  border-color: #0878aa;
+  color: #0878aa;
+}
+
+:root[data-theme="light"] .purchase-options h3 {
+  color: #126c99;
+}
+
+:root[data-theme="light"] .purchase-options button {
   border-color: #0878aa;
   color: #0878aa;
 }

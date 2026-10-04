@@ -20,6 +20,7 @@ public class CourseDbContext : DbContext
     public DbSet<DropboxCoupon> DropboxCoupons => Set<DropboxCoupon>();
     public DbSet<DropboxCouponRedemption> DropboxCouponRedemptions =>
         Set<DropboxCouponRedemption>();
+    public DbSet<DropboxPaidAccess> DropboxPaidAccess => Set<DropboxPaidAccess>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -85,6 +86,23 @@ public class CourseDbContext : DbContext
             .HasOne(redemption => redemption.User)
             .WithMany()
             .HasForeignKey(redemption => redemption.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DropboxPaidAccess>()
+            .Property(access => access.Type)
+            .HasConversion<string>();
+
+        modelBuilder.Entity<DropboxPaidAccess>()
+            .HasIndex(access => access.StripeCheckoutSessionId)
+            .IsUnique();
+
+        modelBuilder.Entity<DropboxPaidAccess>()
+            .HasIndex(access => access.UserId);
+
+        modelBuilder.Entity<DropboxPaidAccess>()
+            .HasOne(access => access.User)
+            .WithMany()
+            .HasForeignKey(access => access.UserId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

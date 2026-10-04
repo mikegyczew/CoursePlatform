@@ -14,6 +14,14 @@ export interface DropboxTrialAccess {
   expiresAt: string | null;
 }
 
+export type DropboxPurchasePlan = "week" | "month" | "forever";
+
+export interface DropboxPurchasePlans {
+  weekAvailable: boolean;
+  monthAvailable: boolean;
+  foreverAvailable: boolean;
+}
+
 async function requestAccess(
   url: string,
   method = "GET",
@@ -65,4 +73,59 @@ export function redeemDropboxCoupon(
     "POST",
     { coupon }
   );
+}
+
+export async function getDropboxPurchasePlans(): Promise<DropboxPurchasePlans> {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error("Zaloguj się, aby sprawdzić metody zakupu.");
+  }
+
+  const response = await fetch(`${API_URL}/payments/stripe/plans`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (response.status === 401) {
+    handleUnauthorized();
+  }
+
+  if (!response.ok) {
+    throw new Error("Nie udało się sprawdzić dostępnych metod zakupu.");
+  }
+
+  return response.json();
+}
+
+export async function startDropboxCheckout(
+  type: DropboxPurchasePlan
+): Promise<string> {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error("Zaloguj się, aby kupić dostęp do szkolenia.");
+  }
+
+  const response = await fetch(`${API_URL}/payments/stripe/checkout`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ type }),
+  });
+
+  if (response.status === 401) {
+    handleUnauthorized();
+  }
+
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null) as
+      | { title?: string }
+      | null;
+    throw new Error(
+      problem?.title ?? "Nie udało się rozpocząć płatności."
+    );
+  }
+
+  const result = await response.json() as { url: string };
+  return result.url;
 }

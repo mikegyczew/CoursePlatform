@@ -3,9 +3,13 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { Course } from "../types/course";
 import type { Lesson } from "../types/lesson";
 import {
+  getDropboxPurchasePlans,
   getDropboxTrialAccess,
   redeemDropboxCoupon,
+  startDropboxCheckout,
   type DropboxTrialAccess,
+  type DropboxPurchasePlan,
+  type DropboxPurchasePlans,
 } from "../services/dropboxAccessService";
 import { getLessons } from "../services/lessonService";
 
@@ -25,9 +29,14 @@ export function CoursePage({
   const [error, setError] = useState<string | null>(null);
   const [trialAccess, setTrialAccess] =
     useState<DropboxTrialAccess | null>(null);
+  const [purchasePlans, setPurchasePlans] =
+    useState<DropboxPurchasePlans | null>(null);
   const [coupon, setCoupon] = useState("");
   const [couponError, setCouponError] = useState<string | null>(null);
   const [redeemingCoupon, setRedeemingCoupon] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [checkoutPlan, setCheckoutPlan] =
+    useState<DropboxPurchasePlan | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,9 +44,13 @@ export function CoursePage({
     async function loadLessons() {
       try {
         if (course.id === -1) {
-          const access = await getDropboxTrialAccess();
+          const [access, plans] = await Promise.all([
+            getDropboxTrialAccess(),
+            getDropboxPurchasePlans(),
+          ]);
           if (cancelled) return;
           setTrialAccess(access);
+          setPurchasePlans(plans);
           if (!access.hasAccess) return;
         }
 
@@ -118,6 +131,29 @@ export function CoursePage({
     }
   }
 
+  async function handlePurchase(type: DropboxPurchasePlan) {
+    setCheckoutError(null);
+    setCheckoutPlan(type);
+
+    try {
+      const checkoutUrl = await startDropboxCheckout(type);
+      window.location.assign(checkoutUrl);
+    } catch (err) {
+      setCheckoutError(
+        err instanceof Error
+          ? err.message
+          : "Nie udało się rozpocząć płatności."
+      );
+      setCheckoutPlan(null);
+    }
+  }
+
+  const hasPurchasePlans = Boolean(
+    purchasePlans?.weekAvailable
+      || purchasePlans?.monthAvailable
+      || purchasePlans?.foreverAvailable
+  );
+
   const canListLessons =
     course.id !== -1 || trialAccess?.hasAccess === true;
 
@@ -156,7 +192,7 @@ export function CoursePage({
       )}
 
       {course.id === -1 && !loading && !error && trialAccess && (
-          <section className="lessons-section coupon-access-section">
+        <section className="lessons-section coupon-access-section">
             <h2>
               {trialAccess.hasAccess
                 ? "Masz dostęp do szkolenia"
@@ -168,8 +204,8 @@ export function CoursePage({
               <>
                 <p className="status">
                   {trialAccess.hasRedeemedCoupon
-                    ? "Wykorzystany kupon wygasł. Wprowadź nowy kupon, aby uzyskać dostęp. W przyszłości będzie tu dostępna płatność."
-                    : "Wprowadź kupon. Kupon testowy daje 24 godziny, a pozostałe kody mogą dawać dostęp na tydzień, miesiąc lub bezterminowo."}
+                    ? "Wykorzystany kupon wygasł. Wprowadź nowy kupon lub kup dostęp."
+                    : "Wprowadź otrzymany kupon albo kup dostęp do szkolenia."}
                 </p>
                 <form
                   className="coupon-form"
@@ -200,16 +236,62 @@ export function CoursePage({
                 )}
               </>
             )}
-          </section>
-        )}
 
-      {course.id === -1 &&
-        trialAccess?.hasAccess &&
-        trialAccess.expiresAt && (
-          <p className="status">
-            Dostęp jest aktywny do{" "}
-            {new Date(trialAccess.expiresAt).toLocaleString("pl-PL")}.
-          </p>
+            {trialAccess.expiresAt && trialAccess.hasAccess && (
+              <p className="status">
+                Dostęp jest aktywny do{" "}
+                {new Date(trialAccess.expiresAt).toLocaleString("pl-PL")}.
+                Możesz przedłużyć go kolejnym zakupem.
+              </p>
+            )}
+
+            {hasPurchasePlans ? (
+              <div className="purchase-options">
+                <h3>Kup dostęp do szkolenia</h3>
+                {purchasePlans?.weekAvailable && (
+                  <button
+                    type="button"
+                    disabled={checkoutPlan !== null}
+                    onClick={() => void handlePurchase("week")}
+                  >
+                    {checkoutPlan === "week"
+                      ? "Przechodzę do płatności..."
+                      : "Kup dostęp na tydzień"}
+                  </button>
+                )}
+                {purchasePlans?.monthAvailable && (
+                  <button
+                    type="button"
+                    disabled={checkoutPlan !== null}
+                    onClick={() => void handlePurchase("month")}
+                  >
+                    {checkoutPlan === "month"
+                      ? "Przechodzę do płatności..."
+                      : "Kup dostęp na miesiąc"}
+                  </button>
+                )}
+                {purchasePlans?.foreverAvailable && (
+                  <button
+                    type="button"
+                    disabled={checkoutPlan !== null}
+                    onClick={() => void handlePurchase("forever")}
+                  >
+                    {checkoutPlan === "forever"
+                      ? "Przechodzę do płatności..."
+                      : "Kup dostęp bezterminowy"}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <p className="status">
+                Zakupy online zostaną włączone po skonfigurowaniu testowych
+                produktów Stripe.
+              </p>
+            )}
+            {checkoutError && (
+              <p className="status error">{checkoutError}</p>
+            )}
+          </section>
         )}
 
       {canListLessons && (

@@ -83,19 +83,26 @@ public sealed class DropboxCouponService(
         var hasActiveCoupon = redemptions.Any(
             item => item.ExpiresAt is null || item.ExpiresAt > now
         );
-        var hasPaidAccess = await paymentService.HasPaidAccessAsync(
+        var paidAccess = await paymentService.GetPaidAccessAsync(
             userId,
             cancellationToken
         );
-        var activeExpiry = redemptions
+        var couponExpiry = redemptions
             .Where(item => item.ExpiresAt > now)
             .MaxBy(item => item.ExpiresAt)
             ?.ExpiresAt;
+        var activeExpiry = new[] { couponExpiry, paidAccess.ExpiresAt }
+            .Where(expiry => expiry is not null)
+            .Max();
+        var hasPermanentCoupon = redemptions.Any(
+            item => item.ExpiresAt is null
+        );
 
         return new DropboxTrialAccessResponse(
             redemptions.Count > 0,
-            hasActiveCoupon || hasPaidAccess,
-            hasPaidAccess || redemptions.Any(item => item.ExpiresAt is null)
+            hasActiveCoupon || paidAccess.HasAccess,
+            paidAccess.HasAccess && paidAccess.ExpiresAt is null
+                || hasPermanentCoupon
                 ? null
                 : activeExpiry
         );

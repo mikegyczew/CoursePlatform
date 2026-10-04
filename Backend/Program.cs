@@ -25,11 +25,14 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<LessonProgressService>();
 builder.Services.AddScoped<DropboxLessonProgressService>();
 builder.Services.AddScoped<DropboxCouponService>();
-builder.Services.AddScoped<IPaymentService, NoPaymentService>();
+builder.Services.Configure<StripeOptions>(
+    builder.Configuration.GetSection("Stripe")
+);
 builder.Services.Configure<DropboxOptions>(
     builder.Configuration.GetSection("Dropbox")
 );
 builder.Services.AddHttpClient<IDropboxService, DropboxService>();
+builder.Services.AddHttpClient<IPaymentService, StripePaymentService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException(
