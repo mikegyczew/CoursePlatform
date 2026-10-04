@@ -36,6 +36,8 @@ export function CoursePage({
     useState<DropboxTrialAccess | null>(null);
   const [purchasePlans, setPurchasePlans] =
     useState<DropboxPurchasePlans | null>(null);
+  const [purchasePlansError, setPurchasePlansError] =
+    useState<string | null>(null);
   const [coupon, setCoupon] = useState("");
   const [couponError, setCouponError] = useState<string | null>(null);
   const [redeemingCoupon, setRedeemingCoupon] = useState(false);
@@ -50,13 +52,27 @@ export function CoursePage({
     async function loadLessons() {
       try {
         if (course.id === -1) {
-          const [access, plans] = await Promise.all([
+          const [accessResult, plansResult] = await Promise.allSettled([
             getDropboxTrialAccess(),
             getDropboxPurchasePlans(),
           ]);
           if (cancelled) return;
+          if (plansResult.status === "fulfilled") {
+            setPurchasePlans(plansResult.value);
+            setPurchasePlansError(null);
+          } else {
+            setPurchasePlansError(
+              plansResult.reason instanceof Error
+                ? plansResult.reason.message
+                : "Nie udało się pobrać dostępnych planów."
+            );
+          }
+          if (accessResult.status === "rejected") {
+            throw accessResult.reason;
+          }
+
+          const access = accessResult.value;
           setTrialAccess(access);
-          setPurchasePlans(plans);
           if (!access.hasAccess) return;
         }
 
@@ -205,16 +221,23 @@ export function CoursePage({
         <p className="status">Sprawdzanie dostępu do szkolenia...</p>
       )}
 
-      {course.id === -1 && !loading && !error && trialAccess && (
+      {course.id === -1 && !loading && (trialAccess || error) && (
         <section className="lessons-section coupon-access-section">
-            <h2>
-              {trialAccess.hasAccess
-                ? "Masz dostęp do szkolenia"
-                : trialAccess.hasRedeemedCoupon
-                  ? "Dostęp wygasł"
-                  : "Odblokuj szkolenie"}
-            </h2>
-            {!trialAccess.hasAccess && (
+            {error && (
+              <p className="status error">
+                Nie udało się sprawdzić dostępu do szkolenia: {error}
+              </p>
+            )}
+            {trialAccess && (
+              <h2>
+                {trialAccess.hasAccess
+                  ? "Masz dostęp do szkolenia"
+                  : trialAccess.hasRedeemedCoupon
+                    ? "Dostęp wygasł"
+                    : "Odblokuj szkolenie"}
+              </h2>
+            )}
+            {trialAccess && !trialAccess.hasAccess && (
               <>
                 <p className="status">
                   {trialAccess.hasRedeemedCoupon
@@ -251,7 +274,7 @@ export function CoursePage({
               </>
             )}
 
-            {trialAccess.expiresAt && trialAccess.hasAccess && (
+            {trialAccess?.expiresAt && trialAccess.hasAccess && (
               <p className="status">
                 Dostęp jest aktywny do{" "}
                 {new Date(trialAccess.expiresAt).toLocaleString("pl-PL")}.
@@ -266,7 +289,7 @@ export function CoursePage({
               </p>
             )}
 
-            {purchasePlans && (
+            {purchasePlans && trialAccess && !trialAccess.hasAccess && (
               <div className="purchase-options">
                 <h3>Wybierz okres dostępu</h3>
                 <p className="status">
@@ -307,6 +330,11 @@ export function CoursePage({
                   </button>
                 )}
               </div>
+            )}
+            {purchasePlansError && (
+              <p className="status error">
+                Nie udało się pobrać cen i planów zakupu: {purchasePlansError}
+              </p>
             )}
             {purchaseError && (
               <p className="status error">{purchaseError}</p>
