@@ -1,4 +1,6 @@
+using System.Buffers.Binary;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -28,7 +30,6 @@ public sealed class DropboxService(
         "https://content.dropboxapi.com/2/files/download";
     private const string TemporaryLinkEndpoint =
         "https://api.dropboxapi.com/2/files/get_temporary_link";
-    private const int DropboxCourseId = -1;
     private const int MaxTextFileBytes = 1_048_576;
     private const int MaxLessonTextBytes = 3_145_728;
     private const int MaxContentPdfBytes = 10_485_760;
@@ -122,11 +123,57 @@ public sealed class DropboxService(
         );
     }
 
-    public async Task<IReadOnlyList<DropboxLessonResponse>> GetLessonsAsync(
+    public async Task<IReadOnlyList<CourseDto>> GetCoursesAsync(
         CancellationToken cancellationToken
     )
     {
-        var lessonFolders = await GetLessonFoldersAsync(cancellationToken);
+        var courseFolders = await GetCourseFoldersAsync(cancellationToken);
+        var courses = courseFolders
+            .Select(folder => new CourseDto
+            {
+                Id = GetCourseId(folder.PathDisplay),
+                Title = folder.Name,
+                Description = "Kurs i materiały udostępnione w Dropboxie.",
+                Category = "Dropbox"
+            })
+            .ToArray();
+        if (courses.Select(course => course.Id).Distinct().Count() != courses.Length)
+        {
+            throw new InvalidOperationException(
+                "Dropbox course folder IDs collided. Rename one of the course folders."
+            );
+        }
+
+        return courses;
+    }
+
+    public async Task<DropboxCourseLocation?> GetCourseAsync(
+        int courseId,
+        CancellationToken cancellationToken
+    )
+    {
+        var courseFolders = await GetCourseFoldersAsync(cancellationToken);
+        var folder = courseFolders.SingleOrDefault(
+            item => GetCourseId(item.PathDisplay) == courseId
+        );
+        return folder is null
+            ? null
+            : new DropboxCourseLocation(
+                courseId,
+                folder.Name,
+                folder.PathDisplay
+            );
+    }
+
+    public async Task<IReadOnlyList<DropboxLessonResponse>> GetLessonsAsync(
+        int courseId,
+        CancellationToken cancellationToken
+    )
+    {
+        var lessonFolders = await GetLessonFoldersAsync(
+            courseId,
+            cancellationToken
+        );
 
         return lessonFolders
             .Select((folder, index) => new DropboxLessonResponse(
@@ -135,17 +182,21 @@ public sealed class DropboxService(
                 null,
                 null,
                 index + 1,
-                DropboxCourseId,
+                courseId,
                 Array.Empty<DropboxMaterialDto>()
             ))
             .ToArray();
     }
 
     public async Task<IReadOnlyDictionary<int, string>> GetLessonPathsAsync(
+        int courseId,
         CancellationToken cancellationToken
     )
     {
-        var lessonFolders = await GetLessonFoldersAsync(cancellationToken);
+        var lessonFolders = await GetLessonFoldersAsync(
+            courseId,
+            cancellationToken
+        );
 
         return lessonFolders
             .Select((folder, index) => new
@@ -157,6 +208,7 @@ public sealed class DropboxService(
     }
 
     public async Task<DropboxLessonResponse?> GetLessonAsync(
+        int courseId,
         int lessonId,
         CancellationToken cancellationToken
     )
@@ -166,7 +218,10 @@ public sealed class DropboxService(
             return null;
         }
 
-        var lessonFolders = await GetLessonFoldersAsync(cancellationToken);
+        var lessonFolders = await GetLessonFoldersAsync(
+            courseId,
+            cancellationToken
+        );
 
         if (lessonId > lessonFolders.Count)
         {
@@ -260,7 +315,7 @@ public sealed class DropboxService(
                     item.entry.Name,
                     kind,
                     contentType,
-                    $"/api/dropbox/courses/{DropboxCourseId}/lessons/{lessonId}/files/{item.id}/link"
+                    $"/api/dropbox/courses/{courseId}/lessons/{lessonId}/files/{item.id}/link"
                 );
             })
             .ToArray();
@@ -273,18 +328,20 @@ public sealed class DropboxService(
                 ? string.Join("\n\n---\n\n", contentParts)
                 : null,
             lessonId,
-            DropboxCourseId,
+            courseId,
             materials
         );
     }
 
     public async Task<string?> GetTemporaryLinkAsync(
+        int courseId,
         int lessonId,
         int fileId,
         CancellationToken cancellationToken
     )
     {
         var file = await GetLessonFileAsync(
+            courseId,
             lessonId,
             fileId,
             cancellationToken
@@ -500,6 +557,7 @@ public sealed class DropboxService(
     }
 
     private async Task<DropboxEntry?> GetLessonFileAsync(
+        int courseId,
         int lessonId,
         int fileId,
         CancellationToken cancellationToken
@@ -510,7 +568,10 @@ public sealed class DropboxService(
             return null;
         }
 
-        var lessonFolders = await GetLessonFoldersAsync(cancellationToken);
+        var lessonFolders = await GetLessonFoldersAsync(
+            courseId,
+            cancellationToken
+        );
 
         if (lessonId > lessonFolders.Count)
         {
@@ -533,16 +594,54 @@ public sealed class DropboxService(
     private static bool IsTextFile(string name) =>
         Path.GetExtension(name).ToLowerInvariant() is ".txt" or ".md" or ".markdown";
 
-    private async Task<List<DropboxEntry>> GetLessonFoldersAsync(
+    private async Task<List<DropboxEntry>> GetCourseFoldersAsync(
         CancellationToken cancellationToken
     ) =>
         (await ListFolderAsync(
-                RequireSetting(_options.RootFolder, "RootFolder"),
+                GetConfiguredRootPath(),
                 cancellationToken
             ))
             .Where(entry => entry.Tag == "folder")
             .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+    private static int GetCourseId(string path)
+    {
+        var hash = SHA256.HashData(
+            Encoding.UTF8.GetBytes(path.ToUpperInvariant())
+        );
+        var value = BinaryPrimitives.ReadUInt32BigEndian(hash);
+        return -((int)(value % int.MaxValue)) - 1;
+    }
+
+    private async Task<List<DropboxEntry>> GetLessonFoldersAsync(
+        int courseId,
+        CancellationToken cancellationToken
+    )
+    {
+        var course = await GetCourseAsync(courseId, cancellationToken);
+        if (course is null)
+        {
+            return [];
+        }
+
+        return (await ListFolderAsync(
+                course.Path,
+                cancellationToken
+            ))
+            .Where(entry => entry.Tag == "folder")
+            .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private string GetConfiguredRootPath()
+    {
+        var rootFolder = RequireSetting(
+            _options.RootFolder,
+            "RootFolder"
+        ).Trim().Trim('/');
+        return rootFolder.Length == 0 ? string.Empty : $"/{rootFolder}";
+    }
 
     private static bool IsContentPdf(string name) =>
         string.Equals(name, "content.pdf", StringComparison.OrdinalIgnoreCase);

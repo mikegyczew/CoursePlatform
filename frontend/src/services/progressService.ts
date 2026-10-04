@@ -32,7 +32,7 @@ function getAuthHeaders(): HeadersInit {
 export async function getCourseProgress(
   courseId: number
 ): Promise<LessonProgress[]> {
-  const progressUrl = courseId === -1
+  const progressUrl = courseId < 0
     ? `${API_URL}/dropbox/courses/${courseId}/progress`
     : `${API_URL}/courses/${courseId}/progress`;
   const response = await fetch(
@@ -68,7 +68,7 @@ export async function setLessonCompleted(
   lessonId: number,
   completed: boolean
 ): Promise<void> {
-  const progressUrl = courseId === -1
+  const progressUrl = courseId < 0
     ? `${API_URL}/dropbox/courses/${courseId}/progress/${lessonId}`
     : `${API_URL}/courses/${courseId}/progress/${lessonId}`;
   const response = await fetch(

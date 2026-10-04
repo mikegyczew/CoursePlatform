@@ -6,6 +6,8 @@ public class DropboxCoupon
 
     public required string CodeHash { get; set; }
 
+    public string? CoursePath { get; set; }
+
     public DropboxCouponType Type { get; set; }
 
     public bool IsSharedTest { get; set; }

@@ -1,3 +1,3 @@
 namespace Backend.DTOs;
 
-public sealed record DropboxCouponRequest(string Coupon);
+public sealed record DropboxCouponRequest(string Coupon, int CourseId);

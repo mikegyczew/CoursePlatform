@@ -21,7 +21,7 @@ services:
     build:
       context: ./Backend
       dockerfile: Dockerfile
-    image: courseplatform-backend:latest
+    image: ghcr.io/mikegyczew/courseplatform-backend:latest
     container_name: courseplatform-backend
     restart: unless-stopped
     environment:
@@ -34,7 +34,7 @@ services:
       Dropbox__AppSecret: ${DROPBOX_APP_SECRET:-}
       Dropbox__RefreshToken: ${DROPBOX_REFRESH_TOKEN:-}
       Dropbox__RedirectUri: ${DROPBOX_REDIRECT_URI:-http://localhost:8080/api/dropbox/callback}
-      Dropbox__RootFolder: ${DROPBOX_ROOT_FOLDER:-/Ekonomia}
+      Dropbox__RootFolder: ${DROPBOX_ROOT_FOLDER:-/}
       Dropbox__CouponAdminKey: ${DROPBOX_COUPON_ADMIN_KEY:-}
       DropboxPricing__WeeklyPricePln: ${DROPBOX_WEEKLY_PRICE_PLN:-50}
       Cors__AllowedOrigins__0: http://localhost:3000
@@ -50,7 +50,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
-    image: courseplatform-frontend:latest
+    image: ghcr.io/mikegyczew/courseplatform-frontend:latest
     container_name: courseplatform-frontend
     restart: unless-stopped
     ports:

@@ -51,9 +51,9 @@ export function CoursePage({
 
     async function loadLessons() {
       try {
-        if (course.id === -1) {
+        if (course.id < 0) {
           const [accessResult, plansResult] = await Promise.allSettled([
-            getDropboxTrialAccess(),
+            getDropboxTrialAccess(course.id),
             getDropboxPurchasePlans(),
           ]);
           if (cancelled) return;
@@ -101,7 +101,7 @@ export function CoursePage({
 
   useEffect(() => {
     if (
-      course.id !== -1
+      course.id >= 0
       || !trialAccess?.hasAccess
       || !trialAccess.expiresAt
     ) {
@@ -128,7 +128,7 @@ export function CoursePage({
     setRedeemingCoupon(true);
 
     try {
-      const access = await redeemDropboxCoupon(coupon);
+      const access = await redeemDropboxCoupon(course.id, coupon);
       setTrialAccess(access);
       setCoupon("");
       setLoading(true);
@@ -158,7 +158,7 @@ export function CoursePage({
     setProcessingPlan(type);
 
     try {
-      const access = await startDropboxPurchase(type);
+      const access = await startDropboxPurchase(course.id, type);
       setTrialAccess(access);
       setPurchaseConfirmed(true);
       setLoading(true);
@@ -185,7 +185,7 @@ export function CoursePage({
   }
 
   const canListLessons =
-    course.id !== -1 || trialAccess?.hasAccess === true;
+    course.id >= 0 || trialAccess?.hasAccess === true;
 
   return (
     <main className="container course-page">
@@ -217,11 +217,11 @@ export function CoursePage({
         </p>
       )}
 
-      {course.id === -1 && loading && (
+      {course.id < 0 && loading && (
         <p className="status">Sprawdzanie dostępu do szkolenia...</p>
       )}
 
-      {course.id === -1 && !loading && (trialAccess || error) && (
+      {course.id < 0 && !loading && (trialAccess || error) && (
         <section className="lessons-section coupon-access-section">
             {error && (
               <p className="status error">

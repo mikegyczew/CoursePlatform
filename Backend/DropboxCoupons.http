@@ -1,15 +1,20 @@
 @baseUrl = http://localhost:8080
 @authToken = replace-with-a-valid-courseplatform-jwt
 @couponAdminKey = replace-with-Dropbox__CouponAdminKey
+@courseId = -1
 
-### Generate ten single-use coupons valid for seven days
+### List Dropbox course IDs first, then set @courseId to the selected course
+GET {{baseUrl}}/api/dropbox/courses
+
+### Generate ten single-use seven-day coupons for the selected course
 POST {{baseUrl}}/api/admin/dropbox-coupons
 Content-Type: application/json
 X-Coupon-Admin-Key: {{couponAdminKey}}
 
 {
   "type": "week",
-  "count": 10
+  "count": 10,
+  "courseId": {{courseId}}
 }
 
 ### Generate a single-use coupon valid for 30 days
@@ -19,7 +24,8 @@ X-Coupon-Admin-Key: {{couponAdminKey}}
 
 {
   "type": "month",
-  "count": 1
+  "count": 1,
+  "courseId": {{courseId}}
 }
 
 ### Generate a single-use permanent coupon
@@ -29,11 +35,23 @@ X-Coupon-Admin-Key: {{couponAdminKey}}
 
 {
   "type": "forever",
-  "count": 1
+  "count": 1,
+  "courseId": {{courseId}}
 }
 
-### Check current Dropbox access
-GET {{baseUrl}}/api/dropbox/access
+### Generate a 24-hour test coupon for the selected course
+POST {{baseUrl}}/api/admin/dropbox-coupons
+Content-Type: application/json
+X-Coupon-Admin-Key: {{couponAdminKey}}
+
+{
+  "type": "test",
+  "count": 1,
+  "courseId": {{courseId}}
+}
+
+### Check access for the selected course
+GET {{baseUrl}}/api/dropbox/access?courseId={{courseId}}
 Authorization: Bearer {{authToken}}
 
 ### Redeem a coupon
@@ -42,5 +60,6 @@ Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "coupon": "kuponTest"
+  "coupon": "replace-with-generated-code",
+  "courseId": {{courseId}}
 }

@@ -10,10 +10,12 @@ namespace Backend.Services;
 
 public sealed class DropboxCouponService(
     CourseDbContext dbContext,
-    IOptions<DropboxOptions> options
+    IOptions<DropboxOptions> options,
+    IDropboxService dropboxService
 )
 {
     private const string TestCouponCode = "kuponTest";
+    private const string LegacyCouponCourseName = "Ekonomia";
     private static readonly TimeSpan TestDuration = TimeSpan.FromHours(24);
     private static readonly string CouponAlphabet =
         "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -40,21 +42,29 @@ public sealed class DropboxCouponService(
     }
 
     public async Task<IReadOnlyList<GeneratedDropboxCoupon>> GenerateAsync(
+        int courseId,
         DropboxCouponType type,
         int count,
         CancellationToken cancellationToken
     )
     {
+        var course = await GetCourseLocationAsync(courseId, cancellationToken);
         var result = new List<GeneratedDropboxCoupon>(count);
         var coupons = new List<DropboxCoupon>(count);
 
         for (var i = 0; i < count; i++)
         {
             var code = GenerateCode();
-            result.Add(new GeneratedDropboxCoupon(code, type));
+            result.Add(new GeneratedDropboxCoupon(
+                code,
+                type,
+                course.Id,
+                course.Name
+            ));
             coupons.Add(new DropboxCoupon
             {
                 CodeHash = HashCode(code),
+                CoursePath = course.Path,
                 Type = type,
                 IsSharedTest = false
             });
@@ -67,12 +77,39 @@ public sealed class DropboxCouponService(
 
     public async Task<DropboxTrialAccessResponse> GetStatusAsync(
         int userId,
+        int courseId,
+        CancellationToken cancellationToken
+    )
+    {
+        var course = await GetCourseLocationAsync(courseId, cancellationToken);
+        return await GetStatusAsync(userId, course, cancellationToken);
+    }
+
+    public async Task<DropboxCourseLocation> GetCourseLocationAsync(
+        int courseId,
+        CancellationToken cancellationToken
+    ) =>
+        await dropboxService.GetCourseAsync(courseId, cancellationToken)
+        ?? throw new DropboxCourseNotFoundException(courseId);
+
+    private async Task<DropboxTrialAccessResponse> GetStatusAsync(
+        int userId,
+        DropboxCourseLocation course,
         CancellationToken cancellationToken
     )
     {
         var redemptions = await dbContext.DropboxCouponRedemptions
             .AsNoTracking()
-            .Where(item => item.UserId == userId)
+            .Where(item =>
+                item.UserId == userId
+                && (
+                    item.Coupon.CoursePath == course.Path
+                    || (
+                        item.Coupon.CoursePath == null
+                        && course.Name == LegacyCouponCourseName
+                    )
+                )
+            )
             .Select(item => new
             {
                 item.ExpiresAt
@@ -99,12 +136,14 @@ public sealed class DropboxCouponService(
 
     public async Task<DropboxTrialAccessResponse> CreateAndRedeemPurchaseCouponAsync(
         int userId,
+        DropboxCourseLocation course,
         DropboxCouponType type,
         CancellationToken cancellationToken
     )
     {
         if (type is not (
-            DropboxCouponType.Week
+            DropboxCouponType.Test
+            or DropboxCouponType.Week
             or DropboxCouponType.Month
             or DropboxCouponType.Forever
         ))
@@ -117,6 +156,7 @@ public sealed class DropboxCouponService(
         var coupon = new DropboxCoupon
         {
             CodeHash = HashCode(code),
+            CoursePath = course.Path,
             Type = type,
             IsSharedTest = false,
             IsRedeemed = true
@@ -136,15 +176,17 @@ public sealed class DropboxCouponService(
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        return await GetStatusAsync(userId, cancellationToken);
+        return await GetStatusAsync(userId, course, cancellationToken);
     }
 
     public async Task<DropboxCouponRedemptionResult> RedeemAsync(
         int userId,
+        int courseId,
         string code,
         CancellationToken cancellationToken
     )
     {
+        var course = await GetCourseLocationAsync(courseId, cancellationToken);
         var normalizedCode = code.Trim();
         var isTestCoupon = string.Equals(
             normalizedCode,
@@ -153,11 +195,27 @@ public sealed class DropboxCouponService(
         );
         var coupon = isTestCoupon
             ? await dbContext.DropboxCoupons.SingleOrDefaultAsync(
-                item => item.IsSharedTest,
+                item =>
+                    item.IsSharedTest
+                    && (
+                        item.CoursePath == course.Path
+                        || (
+                            item.CoursePath == null
+                            && course.Name == LegacyCouponCourseName
+                        )
+                    ),
                 cancellationToken
             )
             : await dbContext.DropboxCoupons.SingleOrDefaultAsync(
-                item => item.CodeHash == HashCode(normalizedCode),
+                item =>
+                    item.CodeHash == HashCode(normalizedCode)
+                    && (
+                        item.CoursePath == course.Path
+                        || (
+                            item.CoursePath == null
+                            && course.Name == LegacyCouponCourseName
+                        )
+                    ),
                 cancellationToken
             );
 
@@ -203,7 +261,7 @@ public sealed class DropboxCouponService(
             await transaction.RollbackAsync(cancellationToken);
             return new DropboxCouponRedemptionResult(
                 DropboxCouponRedemptionStatus.AlreadyRedeemed,
-                await GetStatusAsync(userId, cancellationToken)
+                await GetStatusAsync(userId, course, cancellationToken)
             );
         }
 
@@ -240,13 +298,13 @@ public sealed class DropboxCouponService(
 
             return new DropboxCouponRedemptionResult(
                 DropboxCouponRedemptionStatus.AlreadyRedeemed,
-                await GetStatusAsync(userId, cancellationToken)
+                await GetStatusAsync(userId, course, cancellationToken)
             );
         }
 
         return new DropboxCouponRedemptionResult(
             DropboxCouponRedemptionStatus.Redeemed,
-            await GetStatusAsync(userId, cancellationToken)
+            await GetStatusAsync(userId, course, cancellationToken)
         );
     }
 
@@ -288,8 +346,13 @@ public sealed class DropboxCouponService(
 
 public sealed record GeneratedDropboxCoupon(
     string Code,
-    DropboxCouponType Type
+    DropboxCouponType Type,
+    int CourseId,
+    string CourseName
 );
+
+public sealed class DropboxCourseNotFoundException(int courseId)
+    : Exception($"Dropbox course '{courseId}' was not found.");
 
 public enum DropboxCouponRedemptionStatus
 {

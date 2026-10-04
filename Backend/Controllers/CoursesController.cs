@@ -19,14 +19,6 @@ public class CoursesController : ControllerBase
     public async Task<ActionResult<List<CourseDto>>> GetCourses()
     {
         var courses = await _courseService.GetCoursesAsync();
-        courses.Add(new CourseDto
-        {
-            Id = -1,
-            Title = "Ekonomia",
-            Description = "Kurs i materiały udostępnione w Dropboxie.",
-            Category = "Ekonomia"
-        });
-
         return Ok(courses);
     }
 

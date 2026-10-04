@@ -1,3 +1,3 @@
 namespace Backend.DTOs;
 
-public sealed record DropboxPurchaseRequest(string Type);
+public sealed record DropboxPurchaseRequest(string Type, int CourseId);

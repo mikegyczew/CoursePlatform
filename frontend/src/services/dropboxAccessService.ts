@@ -64,17 +64,20 @@ async function requestAccess(
   return response.json();
 }
 
-export function getDropboxTrialAccess(): Promise<DropboxTrialAccess> {
-  return requestAccess(`${API_URL}/dropbox/access`);
+export function getDropboxTrialAccess(
+  courseId: number
+): Promise<DropboxTrialAccess> {
+  return requestAccess(`${API_URL}/dropbox/access?courseId=${courseId}`);
 }
 
 export function redeemDropboxCoupon(
+  courseId: number,
   coupon: string
 ): Promise<DropboxTrialAccess> {
   return requestAccess(
     `${API_URL}/dropbox/access/redeem`,
     "POST",
-    { coupon }
+    { coupon, courseId }
   );
 }
 
@@ -100,6 +103,7 @@ export async function getDropboxPurchasePlans(): Promise<DropboxPurchasePlans> {
 }
 
 export async function startDropboxPurchase(
+  courseId: number,
   type: DropboxPurchasePlan
 ): Promise<DropboxTrialAccess> {
   const token = getAuthToken();
@@ -113,7 +117,7 @@ export async function startDropboxPurchase(
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ type }),
+    body: JSON.stringify({ type, courseId }),
   });
 
   if (response.status === 401) {

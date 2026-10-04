@@ -12,10 +12,12 @@ public sealed class DropboxLessonProgressService(
 {
     public async Task<List<LessonProgressDto>> GetProgressAsync(
         int userId,
+        int courseId,
         CancellationToken cancellationToken
     )
     {
         var lessonPaths = await dropboxService.GetLessonPathsAsync(
+            courseId,
             cancellationToken
         );
         if (lessonPaths.Count == 0)
@@ -48,6 +50,7 @@ public sealed class DropboxLessonProgressService(
 
     public async Task<bool> SetCompletedAsync(
         int userId,
+        int courseId,
         int lessonId,
         bool completed,
         CancellationToken cancellationToken
@@ -62,6 +65,7 @@ public sealed class DropboxLessonProgressService(
         }
 
         var lessonPaths = await dropboxService.GetLessonPathsAsync(
+            courseId,
             cancellationToken
         );
         if (!lessonPaths.TryGetValue(lessonId, out var lessonPath))

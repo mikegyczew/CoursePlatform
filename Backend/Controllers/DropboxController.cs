@@ -196,7 +196,44 @@ public sealed class DropboxController(
         }
     }
 
-    /// <summary>Lists lesson folders inside the configured Dropbox course.</summary>
+    /// <summary>Lists course folders inside the configured Dropbox root.</summary>
+    [AllowAnonymous]
+    [HttpGet("courses")]
+    [ProducesResponseType(typeof(IReadOnlyList<CourseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<IReadOnlyList<CourseDto>>> GetCourses(
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return Ok(await dropboxService.GetCoursesAsync(cancellationToken));
+        }
+        catch (DropboxConfigurationException exception)
+        {
+            logger.LogWarning(exception, "Dropbox courses are not configured.");
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Dropbox courses are not configured."
+            );
+        }
+        catch (HttpRequestException exception)
+        {
+            logger.LogWarning(exception, "Dropbox course listing failed.");
+            return Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "Could not list Dropbox courses."
+            );
+        }
+        catch (DropboxApiException exception)
+        {
+            return DropboxFailure(exception, "Dropbox course listing failed.");
+        }
+    }
+
+    /// <summary>Lists lesson folders inside a configured Dropbox course.</summary>
     [Authorize]
     [HttpGet("courses/{courseId:int}/lessons")]
     [ProducesResponseType(typeof(IReadOnlyList<DropboxLessonResponse>), StatusCodes.Status200OK)]
@@ -210,7 +247,7 @@ public sealed class DropboxController(
         CancellationToken cancellationToken
     )
     {
-        if (courseId != -1)
+        if (courseId >= 0)
         {
             return NotFound();
         }
@@ -223,6 +260,7 @@ public sealed class DropboxController(
 
         var accessFailure = await GetAccessFailureAsync(
             userId.Value,
+            courseId,
             cancellationToken
         );
         if (accessFailure is not null)
@@ -233,7 +271,10 @@ public sealed class DropboxController(
         try
         {
             return Ok(
-                await dropboxService.GetLessonsAsync(cancellationToken)
+                await dropboxService.GetLessonsAsync(
+                    courseId,
+                    cancellationToken
+                )
             );
         }
         catch (DropboxConfigurationException exception)
@@ -271,7 +312,7 @@ public sealed class DropboxController(
         CancellationToken cancellationToken
     )
     {
-        if (courseId != -1)
+        if (courseId >= 0)
         {
             return NotFound();
         }
@@ -284,6 +325,7 @@ public sealed class DropboxController(
 
         var accessFailure = await GetAccessFailureAsync(
             userId.Value,
+            courseId,
             cancellationToken
         );
         if (accessFailure is not null)
@@ -295,6 +337,7 @@ public sealed class DropboxController(
         {
             return Ok(await progressService.GetProgressAsync(
                 userId.Value,
+                courseId,
                 cancellationToken
             ));
         }
@@ -336,7 +379,7 @@ public sealed class DropboxController(
         CancellationToken cancellationToken
     )
     {
-        if (courseId != -1)
+        if (courseId >= 0)
         {
             return NotFound();
         }
@@ -349,6 +392,7 @@ public sealed class DropboxController(
 
         var accessFailure = await GetAccessFailureAsync(
             userId.Value,
+            courseId,
             cancellationToken
         );
         if (accessFailure is not null)
@@ -367,6 +411,7 @@ public sealed class DropboxController(
         {
             var success = await progressService.SetCompletedAsync(
                 userId.Value,
+                courseId,
                 lessonId,
                 dto.IsCompleted,
                 cancellationToken
@@ -411,7 +456,7 @@ public sealed class DropboxController(
         CancellationToken cancellationToken
     )
     {
-        if (courseId != -1)
+        if (courseId >= 0)
         {
             return NotFound();
         }
@@ -424,6 +469,7 @@ public sealed class DropboxController(
 
         var accessFailure = await GetAccessFailureAsync(
             userId.Value,
+            courseId,
             cancellationToken
         );
         if (accessFailure is not null)
@@ -434,6 +480,7 @@ public sealed class DropboxController(
         try
         {
             var lesson = await dropboxService.GetLessonAsync(
+                courseId,
                 lessonId,
                 cancellationToken
             );
@@ -488,7 +535,7 @@ public sealed class DropboxController(
         CancellationToken cancellationToken
     )
     {
-        if (courseId != -1)
+        if (courseId >= 0)
         {
             return NotFound();
         }
@@ -501,6 +548,7 @@ public sealed class DropboxController(
 
         var accessFailure = await GetAccessFailureAsync(
             userId.Value,
+            courseId,
             cancellationToken
         );
         if (accessFailure is not null)
@@ -511,6 +559,7 @@ public sealed class DropboxController(
         try
         {
             var url = await dropboxService.GetTemporaryLinkAsync(
+                courseId,
                 lessonId,
                 fileId,
                 cancellationToken
@@ -581,7 +630,7 @@ public sealed class DropboxController(
             return Problem(
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Dropbox course folder was not found.",
-                detail: "Check that Dropbox__RootFolder points to an existing folder inside the connected app folder; for example, /Ekonomia."
+                detail: "Set Dropbox__RootFolder to the parent folder containing your course folders, for example, /Kursy."
             );
         }
 
@@ -615,13 +664,47 @@ public sealed class DropboxController(
 
     private async Task<ObjectResult?> GetAccessFailureAsync(
         int userId,
+        int courseId,
         CancellationToken cancellationToken
     )
     {
-        var access = await accessService.GetStatusAsync(
-            userId,
-            cancellationToken
-        );
+        DropboxTrialAccessResponse access;
+        try
+        {
+            access = await accessService.GetStatusAsync(
+                userId,
+                courseId,
+                cancellationToken
+            );
+        }
+        catch (DropboxCourseNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Dropbox course was not found."
+            );
+        }
+        catch (DropboxConfigurationException exception)
+        {
+            logger.LogWarning(exception, "Dropbox access check is not configured.");
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Dropbox access checks are not configured."
+            );
+        }
+        catch (HttpRequestException exception)
+        {
+            logger.LogWarning(exception, "Dropbox access check failed.");
+            return Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "Could not connect to Dropbox."
+            );
+        }
+        catch (DropboxApiException exception)
+        {
+            return DropboxFailure(exception, "Dropbox access check failed.");
+        }
+
         if (access.HasAccess)
         {
             return null;

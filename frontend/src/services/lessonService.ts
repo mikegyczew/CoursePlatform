@@ -5,8 +5,6 @@ const API_BASE = (import.meta.env.VITE_API_URL ?? "").trim();
 const API_URL = API_BASE
   ? `${API_BASE.replace(/\/$/, "")}/api`
   : "/api";
-const DROPBOX_COURSE_ID = -1;
-
 async function fetchDropboxJson<T>(url: string): Promise<T> {
   const token = getAuthToken();
   const response = await fetch(url, {
@@ -85,7 +83,7 @@ async function fetchDropboxJson<T>(url: string): Promise<T> {
 export async function getLessons(
   courseId: number
 ): Promise<Lesson[]> {
-  if (courseId === DROPBOX_COURSE_ID) {
+  if (courseId < 0) {
     return fetchDropboxJson<Lesson[]>(
       `${API_URL}/dropbox/courses/${courseId}/lessons`
     );
@@ -106,7 +104,7 @@ export async function getLesson(
   courseId: number,
   lessonId: number
 ): Promise<Lesson> {
-  if (courseId === DROPBOX_COURSE_ID) {
+  if (courseId < 0) {
     return fetchDropboxJson<Lesson>(
       `${API_URL}/dropbox/courses/${courseId}/lessons/${lessonId}`
     );

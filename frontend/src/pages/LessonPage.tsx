@@ -51,7 +51,7 @@ export function LessonPage({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (courseId !== -1) {
+    if (courseId >= 0) {
       return;
     }
 
@@ -60,7 +60,7 @@ export function LessonPage({
 
     async function monitorTrialAccess() {
       try {
-        const access = await getDropboxTrialAccess();
+        const access = await getDropboxTrialAccess(courseId);
         if (cancelled) return;
 
         if (!access.hasAccess) {
@@ -150,7 +150,7 @@ export function LessonPage({
     let cancelled = false;
 
     async function loadMaterialLinks() {
-      if (courseId !== -1 || !lesson?.materials?.length) {
+      if (courseId >= 0 || !lesson?.materials?.length) {
         setMaterialLinks({});
         setFailedMaterialIds([]);
         return;

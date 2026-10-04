@@ -6,11 +6,19 @@ const API_URL = API_BASE
   : "/api";
 
 export async function getCourses(): Promise<Course[]> {
-  const response = await fetch(`${API_URL}/courses`);
+  const [coursesResponse, dropboxCoursesResponse] = await Promise.all([
+    fetch(`${API_URL}/courses`),
+    fetch(`${API_URL}/dropbox/courses`),
+  ]);
 
-  if (!response.ok) {
-    throw new Error("Nie udało się pobrać kursów.");
+  if (!coursesResponse.ok || !dropboxCoursesResponse.ok) {
+    throw new Error("Nie udało się pobrać kursów. Sprawdź połączenie z Dropboxem.");
   }
 
-  return response.json();
+  const [courses, dropboxCourses] = await Promise.all([
+    coursesResponse.json() as Promise<Course[]>,
+    dropboxCoursesResponse.json() as Promise<Course[]>,
+  ]);
+
+  return [...courses, ...dropboxCourses];
 }
