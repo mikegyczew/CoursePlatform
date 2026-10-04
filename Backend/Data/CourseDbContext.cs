@@ -15,6 +15,8 @@ public class CourseDbContext : DbContext
     public DbSet<Lesson> Lessons => Set<Lesson>();
     public DbSet<User> Users => Set<User>();
     public DbSet<LessonProgress> LessonProgress => Set<LessonProgress>();
+    public DbSet<DropboxLessonProgress> DropboxLessonProgress =>
+        Set<DropboxLessonProgress>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,6 +40,20 @@ public class CourseDbContext : DbContext
             .HasOne(progress => progress.Lesson)
             .WithMany()
             .HasForeignKey(progress => progress.LessonId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DropboxLessonProgress>()
+            .HasIndex(progress => new
+            {
+                progress.UserId,
+                progress.LessonPath
+            })
+            .IsUnique();
+
+        modelBuilder.Entity<DropboxLessonProgress>()
+            .HasOne(progress => progress.User)
+            .WithMany()
+            .HasForeignKey(progress => progress.UserId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

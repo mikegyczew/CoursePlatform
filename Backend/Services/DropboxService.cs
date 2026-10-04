@@ -126,13 +126,7 @@ public sealed class DropboxService(
         CancellationToken cancellationToken
     )
     {
-        var lessonFolders = (await ListFolderAsync(
-                RequireSetting(_options.RootFolder, "RootFolder"),
-                cancellationToken
-            ))
-            .Where(entry => entry.Tag == "folder")
-            .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var lessonFolders = await GetLessonFoldersAsync(cancellationToken);
 
         return lessonFolders
             .Select((folder, index) => new DropboxLessonResponse(
@@ -147,6 +141,21 @@ public sealed class DropboxService(
             .ToArray();
     }
 
+    public async Task<IReadOnlyDictionary<int, string>> GetLessonPathsAsync(
+        CancellationToken cancellationToken
+    )
+    {
+        var lessonFolders = await GetLessonFoldersAsync(cancellationToken);
+
+        return lessonFolders
+            .Select((folder, index) => new
+            {
+                LessonId = index + 1,
+                folder.PathDisplay
+            })
+            .ToDictionary(item => item.LessonId, item => item.PathDisplay);
+    }
+
     public async Task<DropboxLessonResponse?> GetLessonAsync(
         int lessonId,
         CancellationToken cancellationToken
@@ -157,13 +166,7 @@ public sealed class DropboxService(
             return null;
         }
 
-        var lessonFolders = (await ListFolderAsync(
-                RequireSetting(_options.RootFolder, "RootFolder"),
-                cancellationToken
-            ))
-            .Where(entry => entry.Tag == "folder")
-            .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var lessonFolders = await GetLessonFoldersAsync(cancellationToken);
 
         if (lessonId > lessonFolders.Count)
         {
@@ -507,13 +510,7 @@ public sealed class DropboxService(
             return null;
         }
 
-        var lessonFolders = (await ListFolderAsync(
-                RequireSetting(_options.RootFolder, "RootFolder"),
-                cancellationToken
-            ))
-            .Where(entry => entry.Tag == "folder")
-            .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var lessonFolders = await GetLessonFoldersAsync(cancellationToken);
 
         if (lessonId > lessonFolders.Count)
         {
@@ -535,6 +532,17 @@ public sealed class DropboxService(
 
     private static bool IsTextFile(string name) =>
         Path.GetExtension(name).ToLowerInvariant() is ".txt" or ".md" or ".markdown";
+
+    private async Task<List<DropboxEntry>> GetLessonFoldersAsync(
+        CancellationToken cancellationToken
+    ) =>
+        (await ListFolderAsync(
+                RequireSetting(_options.RootFolder, "RootFolder"),
+                cancellationToken
+            ))
+            .Where(entry => entry.Tag == "folder")
+            .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
     private static bool IsContentPdf(string name) =>
         string.Equals(name, "content.pdf", StringComparison.OrdinalIgnoreCase);

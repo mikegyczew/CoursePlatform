@@ -32,8 +32,11 @@ function getAuthHeaders(): HeadersInit {
 export async function getCourseProgress(
   courseId: number
 ): Promise<LessonProgress[]> {
+  const progressUrl = courseId === -1
+    ? `${API_URL}/dropbox/courses/${courseId}/progress`
+    : `${API_URL}/courses/${courseId}/progress`;
   const response = await fetch(
-    `${API_URL}/courses/${courseId}/progress`,
+    progressUrl,
     {
       headers: getAuthHeaders(),
     }
@@ -65,8 +68,11 @@ export async function setLessonCompleted(
   lessonId: number,
   completed: boolean
 ): Promise<void> {
+  const progressUrl = courseId === -1
+    ? `${API_URL}/dropbox/courses/${courseId}/progress/${lessonId}`
+    : `${API_URL}/courses/${courseId}/progress/${lessonId}`;
   const response = await fetch(
-    `${API_URL}/courses/${courseId}/progress/${lessonId}`,
+    progressUrl,
     {
       method: "PUT",
       headers: getAuthHeaders(),

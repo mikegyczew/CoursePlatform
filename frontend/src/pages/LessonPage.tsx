@@ -51,11 +51,6 @@ export function LessonPage({
         setLesson(lessonData);
         setLessons(lessonsData);
 
-        if (courseId === -1) {
-          setCompletedLessons([]);
-          return;
-        }
-
         // Progress wymaga JWT, więc jego błąd nie może zablokować lekcji.
         try {
           const progressData = await getCourseProgress(courseId);
@@ -264,30 +259,28 @@ export function LessonPage({
         )}
       </div>
 
-      {courseId !== -1 && (
-        <section className="course-progress">
-          <div className="course-progress-header">
-            <div>
-              <span className="course-progress-label">
-                POSTĘP KURSU
-              </span>
+      <section className="course-progress">
+        <div className="course-progress-header">
+          <div>
+            <span className="course-progress-label">
+              POSTĘP KURSU
+            </span>
 
-              <span className="course-progress-count">
-                {completedCount} / {totalLessons} lekcji
-              </span>
-            </div>
-
-            <strong>{progress}%</strong>
+            <span className="course-progress-count">
+              {completedCount} / {totalLessons} lekcji
+            </span>
           </div>
 
-          <div className="course-progress-track">
-            <div
-              className="course-progress-fill"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </section>
-      )}
+          <strong>{progress}%</strong>
+        </div>
+
+        <div className="course-progress-track">
+          <div
+            className="course-progress-fill"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </section>
 
       <div className="lesson-content-wrapper">
         <article className="lesson-body">
@@ -304,14 +297,18 @@ export function LessonPage({
               if (failedMaterialIds.includes(material.id)) {
                 return (
                   <p className="status error" key={material.id}>
-                    Nie udało się załadować materiału: {material.name}.
+                    {material.kind === "file"
+                      ? `Nie udało się załadować materiału: ${material.name}.`
+                      : "Nie udało się załadować materiału."}
                   </p>
                 );
               }
 
               return (
                 <p className="status" key={material.id}>
-                  Ładowanie materiału: {material.name}...
+                  {material.kind === "file"
+                    ? `Ładowanie materiału: ${material.name}...`
+                    : "Ładowanie materiału..."}
                 </p>
               );
             }
@@ -319,8 +316,7 @@ export function LessonPage({
             if (material.kind === "image") {
               return (
                 <figure className="lesson-material" key={material.id}>
-                  <img src={link} alt={material.name} loading="lazy" />
-                  <figcaption>{material.name}</figcaption>
+                  <img src={link} alt={lesson.title} loading="lazy" />
                 </figure>
               );
             }
@@ -328,11 +324,14 @@ export function LessonPage({
             if (material.kind === "video") {
               return (
                 <figure className="lesson-material" key={material.id}>
-                  <video controls preload="metadata">
+                  <video
+                    controls
+                    preload="metadata"
+                    aria-label={lesson.title}
+                  >
                     <source src={link} type={material.contentType} />
                     Twoja przeglądarka nie obsługuje odtwarzania wideo.
                   </video>
-                  <figcaption>{material.name}</figcaption>
                 </figure>
               );
             }
@@ -348,35 +347,33 @@ export function LessonPage({
         </article>
       </div>
 
-      {courseId !== -1 && (
-        <div className="lesson-complete">
-          {!isCompleted ? (
+      <div className="lesson-complete">
+        {!isCompleted ? (
+          <button
+            type="button"
+            className="complete-button"
+            onClick={markCompleted}
+          >
+            ✓ Oznacz jako ukończoną
+          </button>
+        ) : (
+          <div className="completed-actions">
+            <div className="lesson-completed">
+              ✓ Lekcja ukończona
+            </div>
+
             <button
               type="button"
-              className="complete-button"
-              onClick={markCompleted}
+              className="undo-complete-button"
+              onClick={undoCompleted}
             >
-              ✓ Oznacz jako ukończoną
+              ↶ Cofnij ukończenie
             </button>
-          ) : (
-            <div className="completed-actions">
-              <div className="lesson-completed">
-                ✓ Lekcja ukończona
-              </div>
+          </div>
+        )}
+      </div>
 
-              <button
-                type="button"
-                className="undo-complete-button"
-                onClick={undoCompleted}
-              >
-                ↶ Cofnij ukończenie
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {courseId !== -1 && isCourseCompleted && (
+      {isCourseCompleted && (
         <div className="course-finished">
           🎉 Kurs ukończony!
         </div>

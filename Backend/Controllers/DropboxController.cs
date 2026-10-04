@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using System.Text;
 using Backend.DTOs;
@@ -11,6 +12,7 @@ namespace Backend.Controllers;
 [Route("api/dropbox")]
 public sealed class DropboxController(
     IDropboxService dropboxService,
+    DropboxLessonProgressService progressService,
     ILogger<DropboxController> logger
 ) : ControllerBase
 {
@@ -240,6 +242,127 @@ public sealed class DropboxController(
         }
     }
 
+    /// <summary>Gets the signed-in user's progress in Dropbox lessons.</summary>
+    [Authorize]
+    [HttpGet("courses/{courseId:int}/progress")]
+    [ProducesResponseType(typeof(List<LessonProgressDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<List<LessonProgressDto>>> GetProgress(
+        int courseId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (courseId != -1)
+        {
+            return NotFound();
+        }
+
+        var userId = GetUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            return Ok(await progressService.GetProgressAsync(
+                userId.Value,
+                cancellationToken
+            ));
+        }
+        catch (DropboxConfigurationException exception)
+        {
+            logger.LogWarning(exception, "Dropbox progress is not configured.");
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Dropbox progress is not configured."
+            );
+        }
+        catch (HttpRequestException exception)
+        {
+            logger.LogWarning(exception, "Dropbox progress retrieval failed.");
+            return Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "Could not retrieve Dropbox progress."
+            );
+        }
+        catch (DropboxApiException exception)
+        {
+            return DropboxFailure(exception, "Dropbox progress retrieval failed.");
+        }
+    }
+
+    /// <summary>Marks a Dropbox lesson complete or reopens it.</summary>
+    [Authorize]
+    [HttpPut("courses/{courseId:int}/progress/{lessonId:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> SetProgress(
+        int courseId,
+        int lessonId,
+        [FromBody] LessonProgressDto dto,
+        CancellationToken cancellationToken
+    )
+    {
+        if (courseId != -1)
+        {
+            return NotFound();
+        }
+
+        var userId = GetUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        if (dto.LessonId != 0 && dto.LessonId != lessonId)
+        {
+            return BadRequest(
+                "LessonId w adresie URL i danych żądania musi być taki sam."
+            );
+        }
+
+        try
+        {
+            var success = await progressService.SetCompletedAsync(
+                userId.Value,
+                lessonId,
+                dto.IsCompleted,
+                cancellationToken
+            );
+            return success
+                ? NoContent()
+                : NotFound("Lekcja Dropbox lub użytkownik nie istnieje.");
+        }
+        catch (DropboxConfigurationException exception)
+        {
+            logger.LogWarning(exception, "Dropbox progress is not configured.");
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Dropbox progress is not configured."
+            );
+        }
+        catch (HttpRequestException exception)
+        {
+            logger.LogWarning(exception, "Dropbox progress update failed.");
+            return Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "Could not update Dropbox progress."
+            );
+        }
+        catch (DropboxApiException exception)
+        {
+            return DropboxFailure(exception, "Dropbox progress update failed.");
+        }
+    }
+
     /// <summary>Returns a Dropbox lesson and its text and media materials.</summary>
     [Authorize]
     [HttpGet("courses/{courseId:int}/lessons/{lessonId:int}")]
@@ -418,5 +541,11 @@ public sealed class DropboxController(
             title: "Dropbox rejected the request.",
             detail: "Check the backend logs for the Dropbox error and request ID."
         );
+    }
+
+    private int? GetUserId()
+    {
+        var claim = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        return int.TryParse(claim, out var userId) ? userId : null;
     }
 }

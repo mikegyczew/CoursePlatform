@@ -19,6 +19,10 @@ public interface IDropboxService
         CancellationToken cancellationToken
     );
 
+    Task<IReadOnlyDictionary<int, string>> GetLessonPathsAsync(
+        CancellationToken cancellationToken
+    );
+
     Task<DropboxLessonResponse?> GetLessonAsync(
         int lessonId,
         CancellationToken cancellationToken
