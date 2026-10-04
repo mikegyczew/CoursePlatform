@@ -13,6 +13,7 @@ namespace Backend.Controllers;
 public sealed class DropboxController(
     IDropboxService dropboxService,
     DropboxLessonProgressService progressService,
+    DropboxTrialAccessService accessService,
     ILogger<DropboxController> logger
 ) : ControllerBase
 {
@@ -214,6 +215,21 @@ public sealed class DropboxController(
             return NotFound();
         }
 
+        var userId = GetUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var accessFailure = await GetAccessFailureAsync(
+            userId.Value,
+            cancellationToken
+        );
+        if (accessFailure is not null)
+        {
+            return accessFailure;
+        }
+
         try
         {
             return Ok(
@@ -264,6 +280,15 @@ public sealed class DropboxController(
         if (userId is null)
         {
             return Unauthorized();
+        }
+
+        var accessFailure = await GetAccessFailureAsync(
+            userId.Value,
+            cancellationToken
+        );
+        if (accessFailure is not null)
+        {
+            return accessFailure;
         }
 
         try
@@ -320,6 +345,15 @@ public sealed class DropboxController(
         if (userId is null)
         {
             return Unauthorized();
+        }
+
+        var accessFailure = await GetAccessFailureAsync(
+            userId.Value,
+            cancellationToken
+        );
+        if (accessFailure is not null)
+        {
+            return accessFailure;
         }
 
         if (dto.LessonId != 0 && dto.LessonId != lessonId)
@@ -382,6 +416,21 @@ public sealed class DropboxController(
             return NotFound();
         }
 
+        var userId = GetUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var accessFailure = await GetAccessFailureAsync(
+            userId.Value,
+            cancellationToken
+        );
+        if (accessFailure is not null)
+        {
+            return accessFailure;
+        }
+
         try
         {
             var lesson = await dropboxService.GetLessonAsync(
@@ -442,6 +491,21 @@ public sealed class DropboxController(
         if (courseId != -1)
         {
             return NotFound();
+        }
+
+        var userId = GetUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var accessFailure = await GetAccessFailureAsync(
+            userId.Value,
+            cancellationToken
+        );
+        if (accessFailure is not null)
+        {
+            return accessFailure;
         }
 
         try
@@ -547,5 +611,30 @@ public sealed class DropboxController(
     {
         var claim = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
         return int.TryParse(claim, out var userId) ? userId : null;
+    }
+
+    private async Task<ObjectResult?> GetAccessFailureAsync(
+        int userId,
+        CancellationToken cancellationToken
+    )
+    {
+        var access = await accessService.GetStatusAsync(
+            userId,
+            cancellationToken
+        );
+        if (access.HasAccess)
+        {
+            return null;
+        }
+
+        return Problem(
+            statusCode: StatusCodes.Status403Forbidden,
+            title: access.HasRedeemedCoupon
+                ? "Dropbox trial expired."
+                : "Dropbox coupon required.",
+            detail: access.HasRedeemedCoupon
+                ? "Okres próbny minął. Aby kontynuować, kup dostęp do kursu."
+                : "Wprowadź kupon, aby uzyskać 24-godzinny dostęp próbny do kursu."
+        );
     }
 }

@@ -758,6 +758,11 @@ body {
   margin: 2rem 0;
 }
 
+.lesson-material h3 {
+  margin: 0 0 0.75rem;
+  color: #bdeaff;
+}
+
 .lesson-material img,
 .lesson-material video {
   display: block;
@@ -765,6 +770,54 @@ body {
   max-height: 75vh;
   object-fit: contain;
   background: rgba(0, 0, 0, 0.25);
+}
+
+.coupon-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 28rem;
+  margin: 1.5rem 0;
+}
+
+.coupon-form label {
+  color: #e8f7ff;
+}
+
+.coupon-form input {
+  padding: 0.8rem;
+  border: 1px solid rgba(0, 191, 255, 0.3);
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+}
+
+.coupon-form button {
+  padding: 0.85rem;
+  border: 1px solid #00bfff;
+  background: rgba(0, 191, 255, 0.1);
+  color: #00bfff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.coupon-form button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+:root[data-theme="light"] .coupon-form label {
+  color: #34495b;
+}
+
+:root[data-theme="light"] .coupon-form input {
+  border-color: #c9dce8;
+  background: #f8fbfd;
+  color: #243447;
+}
+
+:root[data-theme="light"] .coupon-form button {
+  border-color: #0878aa;
+  color: #0878aa;
 }
 
 .lesson-material figcaption {

@@ -7,4 +7,5 @@ public sealed class DropboxOptions
     public string? RedirectUri { get; set; }
     public string? RefreshToken { get; set; }
     public string RootFolder { get; set; } = "/Ekonomia";
+    public string TrialCoupon { get; set; } = "kuponTest";
 }

@@ -24,6 +24,7 @@ builder.Services.AddScoped<LessonService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<LessonProgressService>();
 builder.Services.AddScoped<DropboxLessonProgressService>();
+builder.Services.AddScoped<DropboxTrialAccessService>();
 builder.Services.Configure<DropboxOptions>(
     builder.Configuration.GetSection("Dropbox")
 );

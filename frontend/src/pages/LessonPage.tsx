@@ -12,6 +12,7 @@ import {
   getCourseProgress,
   setLessonCompleted,
 } from "../services/progressService";
+import { getDropboxTrialAccess } from "../services/dropboxAccessService";
 
 interface LessonPageProps {
   courseId: number;
@@ -45,8 +46,54 @@ export function LessonPage({
     Record<number, string>
   >({});
   const [failedMaterialIds, setFailedMaterialIds] = useState<number[]>([]);
+  const [trialExpired, setTrialExpired] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (courseId !== -1) {
+      return;
+    }
+
+    let cancelled = false;
+    let expiryTimer: number | undefined;
+
+    async function monitorTrialAccess() {
+      try {
+        const access = await getDropboxTrialAccess();
+        if (cancelled) return;
+
+        if (!access.hasAccess || !access.expiresAt) {
+          setTrialExpired(true);
+          return;
+        }
+
+        const timeRemaining = Date.parse(access.expiresAt) - Date.now();
+        if (timeRemaining <= 0) {
+          setTrialExpired(true);
+          return;
+        }
+
+        expiryTimer = window.setTimeout(
+          () => setTrialExpired(true),
+          timeRemaining
+        );
+      } catch (accessError) {
+        console.error(
+          "Nie udało się sprawdzić dostępu próbnego:",
+          accessError
+        );
+      }
+    }
+
+    void monitorTrialAccess();
+    return () => {
+      cancelled = true;
+      if (expiryTimer !== undefined) {
+        window.clearTimeout(expiryTimer);
+      }
+    };
+  }, [courseId]);
 
   useEffect(() => {
     async function loadData() {
@@ -190,6 +237,25 @@ export function LessonPage({
     return (
       <main className="container">
         <p className="status">Ładowanie lekcji...</p>
+      </main>
+    );
+  }
+
+  if (trialExpired) {
+    return (
+      <main className="container">
+        <button
+          type="button"
+          className="back-button"
+          onClick={onBack}
+        >
+          ← Powrót do kursu
+        </button>
+        <h1>Dostęp próbny wygasł</h1>
+        <p className="status">
+          24-godzinny okres próbny dobiegł końca. Aby kontynuować
+          szkolenie, należy kupić dostęp.
+        </p>
       </main>
     );
   }

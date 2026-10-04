@@ -21,6 +21,22 @@ async function fetchDropboxJson<T>(url: string): Promise<T> {
 
   if (!response.ok) {
     if (response.status === 403) {
+      const problem = await response.json().catch(() => null) as
+        | { title?: string }
+        | null;
+
+      if (problem?.title === "Dropbox coupon required.") {
+        throw new Error(
+          "Aby otworzyć szkolenie Dropbox, najpierw wprowadź kupon."
+        );
+      }
+
+      if (problem?.title === "Dropbox trial expired.") {
+        throw new Error(
+          "Dostęp próbny do szkolenia wygasł. Aby kontynuować, należy kupić dostęp."
+        );
+      }
+
       throw new Error(
         "Dropbox nie pozwala na dostęp do folderu. Sprawdź uprawnienia aplikacji i folderu."
       );
