@@ -13,7 +13,7 @@ namespace Backend.Controllers;
 public sealed class DropboxController(
     IDropboxService dropboxService,
     DropboxLessonProgressService progressService,
-    DropboxTrialAccessService accessService,
+    DropboxCouponService accessService,
     ILogger<DropboxController> logger
 ) : ControllerBase
 {

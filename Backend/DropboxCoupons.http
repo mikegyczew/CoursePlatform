@@ -1,0 +1,46 @@
+@baseUrl = http://localhost:8080
+@authToken = replace-with-a-valid-courseplatform-jwt
+@couponAdminKey = replace-with-Dropbox__CouponAdminKey
+
+### Generate ten single-use coupons valid for seven days
+POST {{baseUrl}}/api/admin/dropbox-coupons
+Content-Type: application/json
+X-Coupon-Admin-Key: {{couponAdminKey}}
+
+{
+  "type": "week",
+  "count": 10
+}
+
+### Generate a single-use coupon valid for 30 days
+POST {{baseUrl}}/api/admin/dropbox-coupons
+Content-Type: application/json
+X-Coupon-Admin-Key: {{couponAdminKey}}
+
+{
+  "type": "month",
+  "count": 1
+}
+
+### Generate a single-use permanent coupon
+POST {{baseUrl}}/api/admin/dropbox-coupons
+Content-Type: application/json
+X-Coupon-Admin-Key: {{couponAdminKey}}
+
+{
+  "type": "forever",
+  "count": 1
+}
+
+### Check current Dropbox access
+GET {{baseUrl}}/api/dropbox/access
+Authorization: Bearer {{authToken}}
+
+### Redeem a coupon
+POST {{baseUrl}}/api/dropbox/access/redeem
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "coupon": "kuponTest"
+}

@@ -10,7 +10,7 @@ namespace Backend.Controllers;
 [Authorize]
 [Route("api/dropbox/access")]
 public sealed class DropboxAccessController(
-    DropboxTrialAccessService accessService
+    DropboxCouponService couponService
 ) : ControllerBase
 {
     [HttpGet]
@@ -26,7 +26,7 @@ public sealed class DropboxAccessController(
             return Unauthorized();
         }
 
-        return Ok(await accessService.GetStatusAsync(
+        return Ok(await couponService.GetStatusAsync(
             userId.Value,
             cancellationToken
         ));
@@ -48,33 +48,32 @@ public sealed class DropboxAccessController(
             return Unauthorized();
         }
 
-        try
-        {
-            var result = await accessService.RedeemAsync(
-                userId.Value,
-                request.Coupon,
-                cancellationToken
-            );
-
-            return result.Status switch
-            {
-                DropboxCouponRedemptionStatus.Redeemed => Ok(result.Access),
-                DropboxCouponRedemptionStatus.AlreadyRedeemed => Conflict(
-                    result.Access
-                ),
-                _ => Problem(
-                    statusCode: StatusCodes.Status400BadRequest,
-                    title: "Kupon jest nieprawidłowy."
-                )
-            };
-        }
-        catch (DropboxConfigurationException)
+        if (string.IsNullOrWhiteSpace(request.Coupon))
         {
             return Problem(
-                statusCode: StatusCodes.Status503ServiceUnavailable,
-                title: "Kupon testowy Dropbox nie jest skonfigurowany."
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Wprowadź kod kuponu."
             );
         }
+
+        var result = await couponService.RedeemAsync(
+            userId.Value,
+            request.Coupon,
+            cancellationToken
+        );
+
+        return result.Status switch
+        {
+            DropboxCouponRedemptionStatus.Redeemed => Ok(result.Access),
+            DropboxCouponRedemptionStatus.AlreadyRedeemed => Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Kupon został już wykorzystany."
+            ),
+            _ => Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Kupon jest nieprawidłowy."
+            )
+        };
     }
 
     private int? GetUserId()

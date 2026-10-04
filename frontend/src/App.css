@@ -777,11 +777,25 @@ body {
   flex-direction: column;
   gap: 0.75rem;
   max-width: 28rem;
-  margin: 1.5rem 0;
+  margin: 1.5rem auto;
+}
+
+.coupon-access-section {
+  text-align: center;
+}
+
+.coupon-access-section > .status {
+  max-width: 42rem;
+  margin: 0 auto;
+}
+
+.coupon-access-section .status.error {
+  margin-top: 1rem;
 }
 
 .coupon-form label {
   color: #e8f7ff;
+  text-align: center;
 }
 
 .coupon-form input {

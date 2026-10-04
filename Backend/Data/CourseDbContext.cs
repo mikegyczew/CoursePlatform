@@ -17,8 +17,9 @@ public class CourseDbContext : DbContext
     public DbSet<LessonProgress> LessonProgress => Set<LessonProgress>();
     public DbSet<DropboxLessonProgress> DropboxLessonProgress =>
         Set<DropboxLessonProgress>();
-    public DbSet<DropboxTrialAccess> DropboxTrialAccess =>
-        Set<DropboxTrialAccess>();
+    public DbSet<DropboxCoupon> DropboxCoupons => Set<DropboxCoupon>();
+    public DbSet<DropboxCouponRedemption> DropboxCouponRedemptions =>
+        Set<DropboxCouponRedemption>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -58,14 +59,32 @@ public class CourseDbContext : DbContext
             .HasForeignKey(progress => progress.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<DropboxTrialAccess>()
-            .HasIndex(access => access.UserId)
+        modelBuilder.Entity<DropboxCoupon>()
+            .Property(coupon => coupon.Type)
+            .HasConversion<string>();
+
+        modelBuilder.Entity<DropboxCoupon>()
+            .HasIndex(coupon => coupon.CodeHash)
             .IsUnique();
 
-        modelBuilder.Entity<DropboxTrialAccess>()
-            .HasOne(access => access.User)
+        modelBuilder.Entity<DropboxCouponRedemption>()
+            .HasIndex(redemption => new
+            {
+                redemption.CouponId,
+                redemption.UserId
+            })
+            .IsUnique();
+
+        modelBuilder.Entity<DropboxCouponRedemption>()
+            .HasOne(redemption => redemption.Coupon)
             .WithMany()
-            .HasForeignKey(access => access.UserId)
+            .HasForeignKey(redemption => redemption.CouponId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DropboxCouponRedemption>()
+            .HasOne(redemption => redemption.User)
+            .WithMany()
+            .HasForeignKey(redemption => redemption.UserId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

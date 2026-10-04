@@ -38,6 +38,10 @@ async function requestAccess(
   }
 
   if (!response.ok) {
+    if (response.status === 409) {
+      throw new Error("Ten kupon został już wykorzystany.");
+    }
+
     const problem = await response.json().catch(() => null) as
       | { title?: string }
       | null;

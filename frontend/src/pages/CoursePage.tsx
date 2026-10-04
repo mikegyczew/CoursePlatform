@@ -155,18 +155,21 @@ export function CoursePage({
         <p className="status">Sprawdzanie dostępu do szkolenia...</p>
       )}
 
-      {course.id === -1 &&
-        !loading &&
-        !error &&
-        trialAccess &&
-        !trialAccess.hasAccess && (
-          <section className="lessons-section">
-            {!trialAccess.hasRedeemedCoupon ? (
+      {course.id === -1 && !loading && !error && trialAccess && (
+          <section className="lessons-section coupon-access-section">
+            <h2>
+              {trialAccess.hasAccess
+                ? "Masz dostęp do szkolenia"
+                : trialAccess.hasRedeemedCoupon
+                  ? "Dostęp wygasł"
+                  : "Odblokuj szkolenie"}
+            </h2>
+            {!trialAccess.hasAccess && (
               <>
-                <h2>Odblokuj szkolenie</h2>
                 <p className="status">
-                  Wprowadź kupon, aby uzyskać 24-godzinny dostęp próbny.
-                  Kupon można aktywować tylko raz na konto.
+                  {trialAccess.hasRedeemedCoupon
+                    ? "Wykorzystany kupon wygasł. Wprowadź nowy kupon, aby uzyskać dostęp. W przyszłości będzie tu dostępna płatność."
+                    : "Wprowadź kupon. Kupon testowy daje 24 godziny, a pozostałe kody mogą dawać dostęp na tydzień, miesiąc lub bezterminowo."}
                 </p>
                 <form
                   className="coupon-form"
@@ -196,14 +199,6 @@ export function CoursePage({
                   <p className="status error">{couponError}</p>
                 )}
               </>
-            ) : (
-              <>
-                <h2>Dostęp próbny wygasł</h2>
-                <p className="status">
-                  24-godzinny okres próbny dobiegł końca. Aby kontynuować
-                  szkolenie, należy kupić dostęp.
-                </p>
-              </>
             )}
           </section>
         )}
@@ -212,7 +207,7 @@ export function CoursePage({
         trialAccess?.hasAccess &&
         trialAccess.expiresAt && (
           <p className="status">
-            Dostęp próbny jest aktywny do{" "}
+            Dostęp jest aktywny do{" "}
             {new Date(trialAccess.expiresAt).toLocaleString("pl-PL")}.
           </p>
         )}

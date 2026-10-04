@@ -63,8 +63,12 @@ export function LessonPage({
         const access = await getDropboxTrialAccess();
         if (cancelled) return;
 
-        if (!access.hasAccess || !access.expiresAt) {
+        if (!access.hasAccess) {
           setTrialExpired(true);
+          return;
+        }
+
+        if (!access.expiresAt) {
           return;
         }
 
