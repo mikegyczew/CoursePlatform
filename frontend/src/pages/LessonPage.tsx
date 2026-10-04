@@ -20,6 +20,18 @@ interface LessonPageProps {
   onLessonChange?: (lessonId: number) => void;
 }
 
+function getMaterialHeading(name: string): string {
+  const withoutExtension = name.replace(/\.[^.]+$/, "");
+  const heading = withoutExtension
+    .replace(/[_\-.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return heading.length > 0
+    ? heading[0].toLocaleUpperCase("pl-PL") + heading.slice(1)
+    : name;
+}
+
 export function LessonPage({
   courseId,
   lessonId,
@@ -316,6 +328,7 @@ export function LessonPage({
             if (material.kind === "image") {
               return (
                 <figure className="lesson-material" key={material.id}>
+                  <h3>{getMaterialHeading(material.name)}</h3>
                   <img src={link} alt={lesson.title} loading="lazy" />
                 </figure>
               );
@@ -324,6 +337,7 @@ export function LessonPage({
             if (material.kind === "video") {
               return (
                 <figure className="lesson-material" key={material.id}>
+                  <h3>{getMaterialHeading(material.name)}</h3>
                   <video
                     controls
                     preload="metadata"
