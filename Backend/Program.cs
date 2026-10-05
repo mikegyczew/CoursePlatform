@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text;
 using Backend.Data;
 using Backend.Services;
@@ -26,6 +27,31 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<LessonProgressService>();
 builder.Services.AddScoped<DropboxLessonProgressService>();
 builder.Services.AddScoped<DropboxCouponService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
+builder.Services.AddHostedService<CouponExpiryEmailService>();
+builder.Services
+    .AddOptions<SuperAdminOptions>()
+    .Bind(builder.Configuration.GetSection("SuperAdmin"))
+    .Validate(
+        options =>
+        {
+            var hasEmail = !string.IsNullOrWhiteSpace(options.Email);
+            var hasPassword = !string.IsNullOrWhiteSpace(options.Password);
+            return (!hasEmail && !hasPassword)
+                || (
+                    hasEmail
+                    && hasPassword
+                    && new EmailAddressAttribute().IsValid(options.Email)
+                    && options.Password!.Length >= 16
+                );
+        },
+        "Configure both SuperAdmin:Email and a SuperAdmin:Password of at least 16 characters, or leave both empty to disable the admin account."
+    )
+    .ValidateOnStart();
+builder.Services.Configure<EmailOptions>(
+    builder.Configuration.GetSection("Email")
+);
 builder.Services.Configure<DropboxOptions>(
     builder.Configuration.GetSection("Dropbox")
 );
@@ -61,6 +87,7 @@ builder.Services.AddAuthentication(
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
+        RoleClaimType = "role",
 
         ValidIssuer = jwtIssuer,
         ValidAudience = jwtIssuer,
@@ -134,6 +161,16 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+if (
+    string.IsNullOrWhiteSpace(builder.Configuration["SuperAdmin:Email"])
+    || string.IsNullOrWhiteSpace(builder.Configuration["SuperAdmin:Password"])
+)
+{
+    app.Logger.LogWarning(
+        "The superadmin account is disabled because SuperAdmin:Email and SuperAdmin:Password are not configured."
+    );
+}
 
 if (app.Environment.IsDevelopment())
 {

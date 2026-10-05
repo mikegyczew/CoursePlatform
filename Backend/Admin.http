@@ -1,0 +1,39 @@
+@baseUrl = http://localhost:8080
+@adminEmail = admin@example.com
+@adminPassword = replace-with-a-long-environment-password
+@adminToken = replace-with-login-response-token
+
+### Register; creates a pending account and sends confirmation email
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "Example User",
+  "email": "user@example.com"
+}
+
+### Confirm email (the token is in the emailed frontend link)
+POST {{baseUrl}}/api/auth/confirm-email
+Content-Type: application/json
+
+{
+  "token": "replace-with-email-confirmation-token",
+  "password": "choose-a-password-of-at-least-6-characters"
+}
+
+### Sign in as the environment-configured superadmin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
+}
+
+### Inspect users, courses, coupon access, and lesson progress
+GET {{baseUrl}}/api/admin/dashboard
+Authorization: Bearer {{adminToken}}
+
+### Delete a user; linked access and progress are removed by database cascade
+DELETE {{baseUrl}}/api/admin/users/123
+Authorization: Bearer {{adminToken}}

@@ -5,6 +5,7 @@ import { CourseCard } from "./components/CourseCard";
 import { CoursePage } from "./pages/CoursePage";
 import { LessonPage } from "./pages/LessonPage";
 import { LoginPage } from "./pages/LoginPage";
+import { AdminPage } from "./pages/AdminPage";
 import { getCourses } from "./services/courseService";
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
 import {
@@ -34,6 +35,7 @@ function App() {
 
   const [selectedLessonId, setSelectedLessonId] =
     useState<number | null>(null);
+  const [showAdmin, setShowAdmin] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] =
@@ -51,6 +53,7 @@ function App() {
       setLoggedIn(false);
       setSelectedCourse(null);
       setSelectedLessonId(null);
+      setShowAdmin(false);
     }
 
     window.addEventListener(
@@ -68,7 +71,6 @@ function App() {
 
   useEffect(() => {
     if (!loggedIn) {
-      setLoading(false);
       return;
     }
 
@@ -106,6 +108,27 @@ function App() {
     setLoggedIn(false);
     setSelectedCourse(null);
     setSelectedLessonId(null);
+    setShowAdmin(false);
+  }
+
+  if (showAdmin && user?.role === "SuperAdmin") {
+    return (
+      <div className="app">
+        <header className="header">
+          <div className="container header-content">
+            <div>
+              <h1>Platforma kursów online</h1>
+              <p>Panel superadministratora</p>
+            </div>
+            <div className="user-area">
+              <span>{user.name}</span>
+              <button type="button" onClick={handleLogout}>Wyloguj</button>
+            </div>
+          </div>
+        </header>
+        <AdminPage onBack={() => setShowAdmin(false)} />
+      </div>
+    );
   }
 
   if (
@@ -229,7 +252,17 @@ function App() {
 
       <main className="container">
         <section className="courses-section">
-          <h2>Dostępne kursy</h2>
+          <div className="courses-heading">
+            <h2>Dostępne kursy</h2>
+            {user?.role === "SuperAdmin" && (
+              <button
+                type="button"
+                onClick={() => setShowAdmin(true)}
+              >
+                Panel administracyjny
+              </button>
+            )}
+          </div>
 
           {loading && (
             <p className="status">

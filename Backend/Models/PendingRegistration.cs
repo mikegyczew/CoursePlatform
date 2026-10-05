@@ -1,16 +1,16 @@
 namespace Backend.Models;
 
-public class User
+public sealed class PendingRegistration
 {
     public int Id { get; set; }
 
     public required string Email { get; set; }
 
-    public required string PasswordHash { get; set; }
-
     public required string Name { get; set; }
 
-    public bool EmailConfirmed { get; set; } = true;
+    public required string ConfirmationTokenHash { get; set; }
+
+    public DateTime ExpiresAt { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

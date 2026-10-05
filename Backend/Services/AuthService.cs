@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Cryptography;
 using System.Security.Claims;
 using System.Text;
 using Backend.Data;
@@ -13,46 +14,173 @@ public class AuthService
 {
     private readonly CourseDbContext _dbContext;
     private readonly IConfiguration _configuration;
+    private readonly IEmailService _emailService;
 
     public AuthService(
         CourseDbContext dbContext,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IEmailService emailService)
     {
         _dbContext = dbContext;
         _configuration = configuration;
+        _emailService = emailService;
     }
 
-    public async Task<AuthResponseDto?> RegisterAsync(RegisterDto dto)
+    public async Task<bool> RegisterAsync(
+        RegisterDto dto,
+        CancellationToken cancellationToken
+    )
     {
         var email = dto.Email.Trim().ToLowerInvariant();
+        if (IsSuperAdminEmail(email))
+        {
+            return false;
+        }
 
         var exists = await _dbContext.Users
-            .AnyAsync(user => user.Email == email);
+            .AnyAsync(user => user.Email == email, cancellationToken);
 
         if (exists)
         {
+            return false;
+        }
+
+        await _dbContext.PendingRegistrations
+            .Where(item => item.ExpiresAt <= DateTime.UtcNow)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        var token = CreateConfirmationToken();
+        var registration = await _dbContext.PendingRegistrations
+            .SingleOrDefaultAsync(
+                item => item.Email == email,
+                cancellationToken
+            );
+        if (registration is null)
+        {
+            registration = new PendingRegistration
+            {
+                Email = email,
+                Name = dto.Name.Trim(),
+                ConfirmationTokenHash = HashToken(token),
+                ExpiresAt = DateTime.UtcNow.AddHours(24)
+            };
+            _dbContext.PendingRegistrations.Add(registration);
+        }
+        else
+        {
+            registration.Name = dto.Name.Trim();
+            registration.ConfirmationTokenHash = HashToken(token);
+            registration.ExpiresAt = DateTime.UtcNow.AddHours(24);
+            registration.CreatedAt = DateTime.UtcNow;
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var frontendUrl = _configuration["Email:FrontendUrl"];
+        if (string.IsNullOrWhiteSpace(frontendUrl))
+        {
+            throw new EmailDeliveryException(
+                "The frontend URL for email confirmation is not configured."
+            );
+        }
+
+        var confirmationUrl =
+            $"{frontendUrl.TrimEnd('/')}/#confirmEmail={Uri.EscapeDataString(token)}";
+        await _emailService.SendAsync(
+            email,
+            "Potwierdź adres email",
+            $"<p>Cześć {System.Net.WebUtility.HtmlEncode(registration.Name)},</p>"
+                + "<p>Aby dokończyć rejestrację, potwierdź swój adres email:</p>"
+                + $"<p><a href=\"{System.Net.WebUtility.HtmlEncode(confirmationUrl)}\">Potwierdź adres email</a></p>"
+                + "<p>Link jest ważny przez 24 godziny.</p>",
+            cancellationToken
+        );
+
+        return true;
+    }
+
+    public async Task<AuthResponseDto?> ConfirmRegistrationAsync(
+        string token,
+        string password,
+        CancellationToken cancellationToken
+    )
+    {
+        var tokenHash = HashToken(token);
+        await using var transaction = await _dbContext.Database
+            .BeginTransactionAsync(cancellationToken);
+        var registration = await _dbContext.PendingRegistrations
+            .SingleOrDefaultAsync(
+                item =>
+                    item.ConfirmationTokenHash == tokenHash
+                    && item.ExpiresAt > DateTime.UtcNow,
+                cancellationToken
+            );
+        if (registration is null)
+        {
+            return null;
+        }
+
+        if (await _dbContext.Users.AnyAsync(
+                user => user.Email == registration.Email,
+                cancellationToken
+            ))
+        {
+            _dbContext.PendingRegistrations.Remove(registration);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
             return null;
         }
 
         var user = new User
         {
-            Email = email,
-            Name = dto.Name.Trim(),
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
+            Email = registration.Email,
+            Name = registration.Name,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+            EmailConfirmed = true
         };
 
         _dbContext.Users.Add(user);
-        await _dbContext.SaveChangesAsync();
+        _dbContext.PendingRegistrations.Remove(registration);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return CreateAuthResponse(user);
     }
 
-    public async Task<AuthResponseDto?> LoginAsync(LoginDto dto)
+    public async Task<AuthResponseDto?> LoginAsync(
+        LoginDto dto,
+        CancellationToken cancellationToken
+    )
     {
         var email = dto.Email.Trim().ToLowerInvariant();
+        var adminEmail = _configuration["SuperAdmin:Email"]?
+            .Trim()
+            .ToLowerInvariant();
+        if (!string.IsNullOrWhiteSpace(adminEmail) && email == adminEmail)
+        {
+            var adminPassword = _configuration["SuperAdmin:Password"];
+            if (!IsSecretEqual(dto.Password, adminPassword))
+            {
+                return null;
+            }
+
+            return CreateAuthResponse(
+                new User
+                {
+                    Id = -1,
+                    Email = adminEmail,
+                    Name = "Superadmin",
+                    PasswordHash = string.Empty
+                },
+                "SuperAdmin"
+            );
+        }
 
         var user = await _dbContext.Users
-            .FirstOrDefaultAsync(user => user.Email == email);
+            .FirstOrDefaultAsync(
+                user => user.Email == email && user.EmailConfirmed,
+                cancellationToken
+            );
 
         if (user is null)
         {
@@ -72,7 +200,10 @@ public class AuthService
         return CreateAuthResponse(user);
     }
 
-    private AuthResponseDto CreateAuthResponse(User user)
+    private AuthResponseDto CreateAuthResponse(
+        User user,
+        string role = "User"
+    )
     {
         var key = _configuration["Jwt:Key"]
             ?? throw new InvalidOperationException(
@@ -90,6 +221,7 @@ public class AuthService
                 user.Email
             ),
             new Claim(ClaimTypes.Name, user.Name),
+            new Claim("role", role)
         };
 
         var securityKey = new SymmetricSecurityKey(
@@ -116,7 +248,39 @@ public class AuthService
 
             UserId = user.Id,
             Email = user.Email,
-            Name = user.Name
+            Name = user.Name,
+            Role = role
         };
+    }
+
+    private bool IsSuperAdminEmail(string email) =>
+        string.Equals(
+            email,
+            _configuration["SuperAdmin:Email"]?.Trim(),
+            StringComparison.OrdinalIgnoreCase
+        );
+
+    private static string CreateConfirmationToken() =>
+        Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+
+    private static string HashToken(string token) =>
+        Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(token))
+        );
+
+    private static bool IsSecretEqual(string supplied, string? configured)
+    {
+        if (string.IsNullOrEmpty(configured))
+        {
+            return false;
+        }
+
+        return CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(supplied),
+            Encoding.UTF8.GetBytes(configured)
+        );
     }
 }

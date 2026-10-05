@@ -30,6 +30,16 @@ services:
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=courseplatform;Username=courseplatform;Password=${POSTGRES_PASSWORD:-courseplatform_dev_password}
       Jwt__Key: ${JWT_KEY:-CoursePlatformDevelopmentSecretKey1234567890}
       Jwt__Issuer: CoursePlatform
+      SuperAdmin__Email: ${SUPERADMIN_EMAIL:-}
+      SuperAdmin__Password: ${SUPERADMIN_PASSWORD:-}
+      Email__SmtpHost: ${EMAIL_SMTP_HOST:-}
+      Email__SmtpPort: ${EMAIL_SMTP_PORT:-587}
+      Email__SmtpUsername: ${EMAIL_SMTP_USERNAME:-}
+      Email__SmtpPassword: ${EMAIL_SMTP_PASSWORD:-}
+      Email__EnableSsl: ${EMAIL_SMTP_ENABLE_SSL:-true}
+      Email__FromAddress: ${EMAIL_FROM_ADDRESS:-}
+      Email__FromName: ${EMAIL_FROM_NAME:-CoursePlatform}
+      Email__FrontendUrl: ${EMAIL_FRONTEND_URL:-http://localhost:3000}
       Dropbox__AppKey: ${DROPBOX_APP_KEY:-}
       Dropbox__AppSecret: ${DROPBOX_APP_SECRET:-}
       Dropbox__RefreshToken: ${DROPBOX_REFRESH_TOKEN:-}

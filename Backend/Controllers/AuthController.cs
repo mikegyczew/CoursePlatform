@@ -10,33 +10,86 @@ namespace Backend.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(AuthService authService)
+    public AuthController(
+        AuthService authService,
+        ILogger<AuthController> logger
+    )
     {
         _authService = authService;
+        _logger = logger;
     }
 
     [HttpPost("register")]
-    public async Task<ActionResult<AuthResponseDto>> Register(
-        RegisterDto dto)
+    public async Task<IActionResult> Register(
+        RegisterDto dto,
+        CancellationToken cancellationToken
+    )
     {
-        var result = await _authService.RegisterAsync(dto);
-
-        if (result is null)
+        try
         {
-            return Conflict(
-                "Użytkownik z takim adresem email już istnieje."
+            var registered = await _authService.RegisterAsync(
+                dto,
+                cancellationToken
+            );
+            if (!registered)
+            {
+                return Conflict(
+                    "Użytkownik z takim adresem email już istnieje."
+                );
+            }
+
+            return Accepted(new
+            {
+                message = "Wysłaliśmy link potwierdzający na podany adres email."
+            });
+        }
+        catch (EmailDeliveryException exception)
+        {
+            _logger.LogError(
+                exception,
+                "Registration confirmation email failed."
+            );
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Nie udało się wysłać wiadomości potwierdzającej."
             );
         }
+    }
 
-        return Ok(result);
+    [HttpPost("confirm-email")]
+    public async Task<ActionResult<AuthResponseDto>> ConfirmEmail(
+        [FromBody] ConfirmEmailDto dto,
+        CancellationToken cancellationToken
+    )
+    {
+        var result = await _authService.ConfirmRegistrationAsync(
+            dto.Token,
+            dto.Password,
+            cancellationToken
+        );
+
+        if (result is not null)
+        {
+            Response.Headers.CacheControl = "no-store";
+        }
+
+        return result is null
+            ? Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Link potwierdzający jest nieprawidłowy lub wygasł."
+            )
+            : Ok(result);
     }
 
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponseDto>> Login(
-        LoginDto dto)
+        LoginDto dto,
+        CancellationToken cancellationToken
+    )
     {
-        var result = await _authService.LoginAsync(dto);
+        var result = await _authService.LoginAsync(dto, cancellationToken);
 
         if (result is null)
         {

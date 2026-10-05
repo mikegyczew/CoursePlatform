@@ -13,4 +13,8 @@ public class DropboxCouponRedemption
     public DateTime RedeemedAt { get; set; }
 
     public DateTime? ExpiresAt { get; set; }
+
+    public bool NotifyOnExpiry { get; set; }
+
+    public DateTime? ExpiryNotificationSentAt { get; set; }
 }

@@ -20,6 +20,9 @@ public class CourseDbContext : DbContext
     public DbSet<DropboxCoupon> DropboxCoupons => Set<DropboxCoupon>();
     public DbSet<DropboxCouponRedemption> DropboxCouponRedemptions =>
         Set<DropboxCouponRedemption>();
+    public DbSet<PendingRegistration> PendingRegistrations =>
+        Set<PendingRegistration>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -64,6 +67,22 @@ public class CourseDbContext : DbContext
 
         modelBuilder.Entity<DropboxCoupon>()
             .HasIndex(coupon => coupon.CodeHash)
+            .IsUnique();
+
+        modelBuilder.Entity<User>()
+            .HasIndex(user => user.Email)
+            .IsUnique();
+
+        modelBuilder.Entity<User>()
+            .Property(user => user.EmailConfirmed)
+            .HasDefaultValue(true);
+
+        modelBuilder.Entity<PendingRegistration>()
+            .HasIndex(registration => registration.Email)
+            .IsUnique();
+
+        modelBuilder.Entity<PendingRegistration>()
+            .HasIndex(registration => registration.ConfirmationTokenHash)
             .IsUnique();
 
         modelBuilder.Entity<DropboxCouponRedemption>()

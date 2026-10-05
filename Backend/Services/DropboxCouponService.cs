@@ -170,7 +170,8 @@ public sealed class DropboxCouponService(
             Coupon = coupon,
             UserId = userId,
             RedeemedAt = redeemedAt,
-            ExpiresAt = GetExpiry(type, redeemedAt)
+            ExpiresAt = GetExpiry(type, redeemedAt),
+            NotifyOnExpiry = true
         });
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -271,7 +272,8 @@ public sealed class DropboxCouponService(
             CouponId = coupon.Id,
             UserId = userId,
             RedeemedAt = redeemedAt,
-            ExpiresAt = GetExpiry(coupon.Type, redeemedAt)
+            ExpiresAt = GetExpiry(coupon.Type, redeemedAt),
+            NotifyOnExpiry = true
         };
         dbContext.DropboxCouponRedemptions.Add(redemption);
 
