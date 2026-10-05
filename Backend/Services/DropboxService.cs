@@ -1,10 +1,12 @@
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Backend.DTOs;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Core;
@@ -13,6 +15,7 @@ namespace Backend.Services;
 
 public sealed class DropboxService(
     HttpClient httpClient,
+    IMemoryCache memoryCache,
     IOptions<DropboxOptions> options
 ) : IDropboxService
 {
@@ -33,11 +36,18 @@ public sealed class DropboxService(
     private const int MaxTextFileBytes = 1_048_576;
     private const int MaxLessonTextBytes = 3_145_728;
     private const int MaxContentPdfBytes = 10_485_760;
+    private static readonly TimeSpan FolderCacheDuration =
+        TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan TokenExpiryBuffer =
+        TimeSpan.FromSeconds(60);
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim>
+        CacheLocks = new(StringComparer.Ordinal);
 
     private static readonly JsonSerializerOptions JsonOptions =
         new(JsonSerializerDefaults.Web);
 
     private readonly DropboxOptions _options = options.Value;
+    private readonly IMemoryCache _memoryCache = memoryCache;
 
     public string CreateAuthorizationUrl(string state)
     {
@@ -386,19 +396,55 @@ public sealed class DropboxService(
         CancellationToken cancellationToken
     )
     {
-        var token = await RequestTokenAsync(
-            new Dictionary<string, string>
-            {
-                ["grant_type"] = "refresh_token",
-                ["refresh_token"] = RequireSetting(
-                    _options.RefreshToken,
-                    "RefreshToken"
-                )
-            },
-            cancellationToken
+        var appKey = RequireSetting(_options.AppKey, "AppKey");
+        var refreshToken = RequireSetting(
+            _options.RefreshToken,
+            "RefreshToken"
         );
+        var cacheKey =
+            $"dropbox-access-token:{HashCacheKey(appKey, refreshToken)}";
+        if (_memoryCache.TryGetValue(cacheKey, out string? cachedToken))
+        {
+            return cachedToken!;
+        }
 
-        return token.AccessToken;
+        var cacheLock = CacheLocks.GetOrAdd(
+            cacheKey,
+            static _ => new SemaphoreSlim(1, 1)
+        );
+        await cacheLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_memoryCache.TryGetValue(cacheKey, out cachedToken))
+            {
+                return cachedToken!;
+            }
+
+            var token = await RequestTokenAsync(
+                new Dictionary<string, string>
+                {
+                    ["grant_type"] = "refresh_token",
+                    ["refresh_token"] = refreshToken
+                },
+                cancellationToken
+            );
+
+            if (token.ExpiresIn > TokenExpiryBuffer.TotalSeconds)
+            {
+                _memoryCache.Set(
+                    cacheKey,
+                    token.AccessToken,
+                    TimeSpan.FromSeconds(token.ExpiresIn)
+                        - TokenExpiryBuffer
+                );
+            }
+
+            return token.AccessToken;
+        }
+        finally
+        {
+            cacheLock.Release();
+        }
     }
 
     private async Task<DropboxTokenResponse> RequestTokenAsync(
@@ -438,6 +484,48 @@ public sealed class DropboxService(
     }
 
     private async Task<List<DropboxEntry>> ListFolderAsync(
+        string path,
+        CancellationToken cancellationToken
+    )
+    {
+        var cacheKey = $"dropbox-folder:{path}";
+        if (_memoryCache.TryGetValue(
+                cacheKey,
+                out List<DropboxEntry>? cachedEntries
+            ))
+        {
+            return cachedEntries!;
+        }
+
+        var cacheLock = CacheLocks.GetOrAdd(
+            cacheKey,
+            static _ => new SemaphoreSlim(1, 1)
+        );
+        await cacheLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_memoryCache.TryGetValue(
+                    cacheKey,
+                    out cachedEntries
+                ))
+            {
+                return cachedEntries!;
+            }
+
+            var entries = await ListFolderFromDropboxAsync(
+                path,
+                cancellationToken
+            );
+            _memoryCache.Set(cacheKey, entries, FolderCacheDuration);
+            return entries;
+        }
+        finally
+        {
+            cacheLock.Release();
+        }
+    }
+
+    private async Task<List<DropboxEntry>> ListFolderFromDropboxAsync(
         string path,
         CancellationToken cancellationToken
     )
@@ -643,6 +731,12 @@ public sealed class DropboxService(
         return rootFolder.Length == 0 ? string.Empty : $"/{rootFolder}";
     }
 
+    private static string HashCacheKey(string appKey, string refreshToken)
+    {
+        var value = Encoding.UTF8.GetBytes($"{appKey}:{refreshToken}");
+        return Convert.ToHexString(SHA256.HashData(value));
+    }
+
     private static bool IsContentPdf(string name) =>
         string.Equals(name, "content.pdf", StringComparison.OrdinalIgnoreCase);
 
@@ -767,7 +861,8 @@ public sealed class DropboxService(
 
     private sealed record DropboxTokenResponse(
         [property: JsonPropertyName("access_token")] string AccessToken,
-        [property: JsonPropertyName("refresh_token")] string? RefreshToken
+        [property: JsonPropertyName("refresh_token")] string? RefreshToken,
+        [property: JsonPropertyName("expires_in")] long ExpiresIn
     );
 
     private sealed record DropboxCurrentAccount(

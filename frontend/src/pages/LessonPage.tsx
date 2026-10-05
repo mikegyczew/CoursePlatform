@@ -100,38 +100,47 @@ export function LessonPage({
   }, [courseId]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadProgress() {
+      try {
+        const progressData = await getCourseProgress(courseId);
+        if (cancelled) return;
+
+        setCompletedLessons(
+          progressData
+            .filter((item) => item.isCompleted)
+            .map((item) => item.lessonId)
+        );
+      } catch (progressError) {
+        if (cancelled) return;
+
+        console.warn(
+          "Nie udało się pobrać postępu użytkownika:",
+          progressError
+        );
+        setCompletedLessons([]);
+      }
+    }
+
     async function loadData() {
       try {
         setLoading(true);
         setError(null);
+        void loadProgress();
 
-        // Lekcja i lista lekcji są niezależne od logowania.
+        // Lekcja, lista lekcji i postęp są pobierane równolegle.
         const [lessonData, lessonsData] = await Promise.all([
           getLesson(courseId, lessonId),
           getLessons(courseId),
         ]);
+        if (cancelled) return;
 
         setLesson(lessonData);
         setLessons(lessonsData);
-
-        // Progress wymaga JWT, więc jego błąd nie może zablokować lekcji.
-        try {
-          const progressData = await getCourseProgress(courseId);
-
-          setCompletedLessons(
-            progressData
-              .filter((item) => item.isCompleted)
-              .map((item) => item.lessonId)
-          );
-        } catch (progressError) {
-          console.warn(
-            "Nie udało się pobrać postępu użytkownika:",
-            progressError
-          );
-
-          setCompletedLessons([]);
-        }
       } catch (err) {
+        if (cancelled) return;
+
         console.error(err);
         setError(
           err instanceof Error
@@ -139,11 +148,16 @@ export function LessonPage({
             : "Nie udało się pobrać lekcji."
         );
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
-    loadData();
+    void loadData();
+    return () => {
+      cancelled = true;
+    };
   }, [courseId, lessonId]);
 
   useEffect(() => {
