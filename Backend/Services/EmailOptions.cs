@@ -2,7 +2,9 @@ namespace Backend.Services;
 
 public sealed class EmailOptions
 {
-    public string? ResendApiKey { get; set; }
+    public string? MailjetApiKey { get; set; }
+
+    public string? MailjetApiSecret { get; set; }
 
     public string? FromAddress { get; set; }
 

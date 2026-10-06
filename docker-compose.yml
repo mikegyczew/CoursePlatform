@@ -32,7 +32,8 @@ services:
       Jwt__Issuer: CoursePlatform
       SuperAdmin__Email: ${SUPERADMIN_EMAIL:-}
       SuperAdmin__Password: ${SUPERADMIN_PASSWORD:-}
-      Email__ResendApiKey: ${EMAIL_RESEND_API_KEY:-}
+      Email__MailjetApiKey: ${EMAIL_MAILJET_API_KEY:-}
+      Email__MailjetApiSecret: ${EMAIL_MAILJET_API_SECRET:-}
       Email__FromAddress: ${EMAIL_FROM_ADDRESS:-}
       Email__FromName: ${EMAIL_FROM_NAME:-CoursePlatform}
       Email__FrontendUrl: ${EMAIL_FRONTEND_URL:-http://localhost:3000}
