@@ -5,6 +5,7 @@ using Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Resend;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,7 +29,11 @@ builder.Services.AddScoped<LessonProgressService>();
 builder.Services.AddScoped<DropboxLessonProgressService>();
 builder.Services.AddScoped<DropboxCouponService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
-builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
+builder.Services.AddResend(options =>
+{
+    options.ApiToken = builder.Configuration["Email:ResendApiKey"] ?? "";
+});
+builder.Services.AddSingleton<IEmailService, ResendEmailService>();
 builder.Services.AddHostedService<CouponExpiryEmailService>();
 builder.Services
     .AddOptions<SuperAdminOptions>()
