@@ -25,9 +25,9 @@ SMTP access from the host.
 Dropbox course access pricing is configured with `DropboxPricing__WeeklyPricePln`
 and `DropboxPricing__TestDurationDays`. Set `DropboxPricing__TestDurationDays`
 in the hosting environment to control how long the `kuponTest` trial lasts
-(default: 24 days). Paid weekly, monthly, and permanent plans remain available
-while a user already has access; a paid time-limited purchase extends the
-current active expiry.
+(default: 24 days; use a positive integer such as `24`). Paid weekly, monthly,
+and permanent plans remain available while a user already has access; a paid
+time-limited purchase extends the current active expiry.
 
 New accounts remain pending until the user opens the confirmation link and
 chooses a password. The pending record contains no password hash. The link
