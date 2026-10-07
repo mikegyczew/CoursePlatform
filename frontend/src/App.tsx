@@ -8,6 +8,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { AdminPage } from "./pages/AdminPage";
 import { getCourses } from "./services/courseService";
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
+import type { DropboxTrialAccess } from "./services/dropboxAccessService";
 import {
   AUTH_REQUIRED_EVENT,
   getAuthUser,
@@ -31,6 +32,7 @@ interface AppHeaderProps {
   onLogout: () => void;
   showAdmin: boolean;
   onToggleAdmin: () => void;
+  courseAccess?: DropboxTrialAccess | null;
 }
 
 function AppHeader({
@@ -40,6 +42,7 @@ function AppHeader({
   onLogout,
   showAdmin,
   onToggleAdmin,
+  courseAccess,
 }: AppHeaderProps) {
   return (
     <header className="header">
@@ -50,6 +53,13 @@ function AppHeader({
               <button type="button" onClick={onToggleAdmin}>
                 {showAdmin ? "Kursy" : "Panel administratora"}
               </button>
+            )}
+            {courseAccess?.hasAccess && (
+              <span className="course-access-badge">
+                {courseAccess.expiresAt
+                  ? `Dostęp do ${new Date(courseAccess.expiresAt).toLocaleString("pl-PL")}`
+                  : "Bezterminowy dostęp"}
+              </span>
             )}
           </div>
           <div className="header-toolbar-right">
@@ -82,6 +92,8 @@ function App() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] =
     useState<Course | null>(null);
+  const [courseAccess, setCourseAccess] =
+    useState<DropboxTrialAccess | null>(null);
 
   const [selectedLessonId, setSelectedLessonId] =
     useState<number | null>(null);
@@ -102,6 +114,7 @@ function App() {
     function handleAuthRequired() {
       setLoggedIn(false);
       setSelectedCourse(null);
+      setCourseAccess(null);
       setSelectedLessonId(null);
       setShowAdmin(false);
     }
@@ -157,6 +170,7 @@ function App() {
     logout();
     setLoggedIn(false);
     setSelectedCourse(null);
+    setCourseAccess(null);
     setSelectedLessonId(null);
     setShowAdmin(false);
   }
@@ -224,14 +238,19 @@ function App() {
           onLogout={handleLogout}
           showAdmin={false}
           onToggleAdmin={() => setShowAdmin(true)}
+          courseAccess={courseAccess}
         />
 
         <CoursePage
           course={selectedCourse}
-          onBack={() => setSelectedCourse(null)}
+          onBack={() => {
+            setSelectedCourse(null);
+            setCourseAccess(null);
+          }}
           onLessonClick={(lessonId) =>
             setSelectedLessonId(lessonId)
           }
+          onAccessChange={setCourseAccess}
         />
       </div>
     );
@@ -287,7 +306,10 @@ function App() {
                     key={course.id}
                     course={course}
                     onClick={() =>
-                      setSelectedCourse(course)
+                      {
+                        setCourseAccess(null);
+                        setSelectedCourse(course);
+                      }
                     }
                   />
                 ))}

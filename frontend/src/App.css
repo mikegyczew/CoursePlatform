@@ -1368,6 +1368,11 @@ body {
   gap: 0.75rem;
 }
 
+.course-access-badge {
+  color: #e8f7ff;
+  font-size: 0.9rem;
+}
+
 .header-toolbar-right {
   margin-left: auto;
 }
@@ -1715,6 +1720,10 @@ body {
 }
 
 :root[data-theme="light"] .user-name {
+  color: #34495b;
+}
+
+:root[data-theme="light"] .course-access-badge {
   color: #34495b;
 }
 

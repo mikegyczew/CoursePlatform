@@ -17,6 +17,7 @@ interface CoursePageProps {
   course: Course;
   onBack: () => void;
   onLessonClick: (lessonId: number) => void;
+  onAccessChange: (access: DropboxTrialAccess | null) => void;
 }
 
 const priceFormatter = new Intl.NumberFormat("pl-PL", {
@@ -28,6 +29,7 @@ export function CoursePage({
   course,
   onBack,
   onLessonClick,
+  onAccessChange,
 }: CoursePageProps) {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +49,10 @@ export function CoursePage({
   const [processingPlan, setProcessingPlan] =
     useState<DropboxPurchasePlan | null>(null);
   const [purchaseConfirmed, setPurchaseConfirmed] = useState(false);
+
+  useEffect(() => {
+    onAccessChange(trialAccess);
+  }, [onAccessChange, trialAccess]);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,22 +133,38 @@ export function CoursePage({
       return;
     }
 
+    let cancelled = false;
     const transitionTimer = window.setTimeout(() => {
-      setPurchaseConfirmed(false);
       setLoading(true);
-      void getLessons(course.id)
-        .then(setLessons)
+      void Promise.all([
+        getDropboxTrialAccess(course.id),
+        getLessons(course.id),
+      ])
+        .then(([access, courseLessons]) => {
+          if (cancelled) return;
+          setTrialAccess(access);
+          setLessons(courseLessons);
+          setError(null);
+        })
         .catch((err: unknown) => {
+          if (cancelled) return;
           setError(
             err instanceof Error
               ? err.message
               : "Nie udało się pobrać lekcji."
           );
         })
-        .finally(() => setLoading(false));
+        .finally(() => {
+          if (cancelled) return;
+          setPurchaseConfirmed(false);
+          setLoading(false);
+        });
     }, 1800);
 
-    return () => window.clearTimeout(transitionTimer);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(transitionTimer);
+    };
   }, [course.id, purchaseConfirmed]);
 
   async function handleRedeemCoupon(
@@ -307,14 +329,6 @@ export function CoursePage({
                   </>
                 )}
               </div>
-            )}
-
-            {trialAccess?.hasAccess && (
-              <p className="status">
-                {trialAccess.expiresAt
-                  ? `Dostęp jest aktywny do ${new Date(trialAccess.expiresAt).toLocaleString("pl-PL")}. Możesz przedłużyć go kolejnym zakupem.`
-                  : "Masz bezterminowy dostęp do tego szkolenia."}
-              </p>
             )}
 
             {purchasePlans

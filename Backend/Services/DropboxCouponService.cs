@@ -173,7 +173,8 @@ public sealed class DropboxCouponService(
         await using var transaction = await dbContext.Database
             .BeginTransactionAsync(cancellationToken);
         var redeemedAt = DateTime.UtcNow;
-        var activeExpirations = await dbContext.DropboxCouponRedemptions
+        var activeRedemption = await dbContext.DropboxCouponRedemptions
+            .Include(item => item.Coupon)
             .Where(item =>
                 item.UserId == userId
                 && (
@@ -185,33 +186,57 @@ public sealed class DropboxCouponService(
                 )
                 && (item.ExpiresAt == null || item.ExpiresAt > redeemedAt)
             )
-            .Select(item => item.ExpiresAt)
-            .ToListAsync(cancellationToken);
-        var hasPermanentAccess = activeExpirations.Any(
-            expiration => expiration is null
-        );
-        var renewalStartsAt = activeExpirations
-            .Where(expiration => expiration.HasValue)
-            .Max() ?? redeemedAt;
-        var coupon = new DropboxCoupon
+            .OrderByDescending(item => item.ExpiresAt == null)
+            .ThenByDescending(item => item.ExpiresAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (activeRedemption is not null)
         {
-            CodeHash = HashCode(GenerateCode()),
-            CoursePath = course.Path,
-            Type = type,
-            IsSharedTest = false,
-            IsRedeemed = true
-        };
-        dbContext.DropboxCoupons.Add(coupon);
-        dbContext.DropboxCouponRedemptions.Add(new DropboxCouponRedemption
+            if (activeRedemption.ExpiresAt is not null)
+            {
+                activeRedemption.ExpiresAt = GetExpiry(
+                    type,
+                    activeRedemption.ExpiresAt.Value
+                );
+            }
+
+            if (
+                !activeRedemption.Coupon.IsSharedTest
+                && (
+                    activeRedemption.ExpiresAt is not null
+                    || type == DropboxCouponType.Forever
+                )
+            )
+            {
+                activeRedemption.Coupon.Type = type;
+            }
+
+            activeRedemption.NotifyOnExpiry =
+                activeRedemption.ExpiresAt is not null;
+            activeRedemption.ExpiryNotificationSentAt = null;
+        }
+        else
         {
-            Coupon = coupon,
-            UserId = userId,
-            RedeemedAt = redeemedAt,
-            ExpiresAt = hasPermanentAccess
-                ? null
-                : GetExpiry(type, renewalStartsAt),
-            NotifyOnExpiry = true
-        });
+            var coupon = new DropboxCoupon
+            {
+                CodeHash = HashCode(GenerateCode()),
+                CoursePath = course.Path,
+                Type = type,
+                IsSharedTest = false,
+                IsRedeemed = true
+            };
+            dbContext.DropboxCoupons.Add(coupon);
+            dbContext.DropboxCouponRedemptions.Add(
+                new DropboxCouponRedemption
+                {
+                    Coupon = coupon,
+                    UserId = userId,
+                    RedeemedAt = redeemedAt,
+                    ExpiresAt = GetExpiry(type, redeemedAt),
+                    NotifyOnExpiry = type != DropboxCouponType.Forever
+                }
+            );
+        }
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
