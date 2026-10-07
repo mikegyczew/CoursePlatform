@@ -11,15 +11,17 @@ namespace Backend.Services;
 public sealed class DropboxCouponService(
     CourseDbContext dbContext,
     IOptions<DropboxOptions> options,
-    IDropboxService dropboxService
+    IDropboxService dropboxService,
+    IOptions<DropboxPricingOptions> pricingOptions
 )
 {
     private const string TestCouponCode = "kuponTest";
     private const string LegacyCouponCourseName = "Ekonomia";
-    private static readonly TimeSpan TestDuration = TimeSpan.FromHours(24);
     private static readonly string CouponAlphabet =
         "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
     private readonly DropboxOptions _options = options.Value;
+    private readonly DropboxPricingOptions _pricingOptions =
+        pricingOptions.Value;
 
     public bool IsAdminKeyConfigured =>
         !string.IsNullOrWhiteSpace(_options.CouponAdminKey);
@@ -151,26 +153,39 @@ public sealed class DropboxCouponService(
             throw new ArgumentOutOfRangeException(nameof(type));
         }
 
-        var code = GenerateCode();
+        await using var transaction = await dbContext.Database
+            .BeginTransactionAsync(cancellationToken);
         var redeemedAt = DateTime.UtcNow;
+        var renewalStartsAt = await dbContext.DropboxCouponRedemptions
+            .Where(item =>
+                item.UserId == userId
+                && (
+                    item.Coupon.CoursePath == course.Path
+                    || (
+                        item.Coupon.CoursePath == null
+                        && course.Name == LegacyCouponCourseName
+                    )
+                )
+                && item.ExpiresAt > redeemedAt
+            )
+            .Select(item => item.ExpiresAt!.Value)
+            .DefaultIfEmpty(redeemedAt)
+            .MaxAsync(cancellationToken);
         var coupon = new DropboxCoupon
         {
-            CodeHash = HashCode(code),
+            CodeHash = HashCode(GenerateCode()),
             CoursePath = course.Path,
             Type = type,
             IsSharedTest = false,
             IsRedeemed = true
         };
         dbContext.DropboxCoupons.Add(coupon);
-
-        await using var transaction = await dbContext.Database
-            .BeginTransactionAsync(cancellationToken);
         dbContext.DropboxCouponRedemptions.Add(new DropboxCouponRedemption
         {
             Coupon = coupon,
             UserId = userId,
             RedeemedAt = redeemedAt,
-            ExpiresAt = GetExpiry(type, redeemedAt),
+            ExpiresAt = GetExpiry(type, renewalStartsAt),
             NotifyOnExpiry = true
         });
 
@@ -310,13 +325,15 @@ public sealed class DropboxCouponService(
         );
     }
 
-    private static DateTime? GetExpiry(
+    private DateTime? GetExpiry(
         DropboxCouponType type,
         DateTime redeemedAt
     ) =>
         type switch
         {
-            DropboxCouponType.Test => redeemedAt + TestDuration,
+            DropboxCouponType.Test => redeemedAt.AddDays(
+                _pricingOptions.TestDurationDays
+            ),
             DropboxCouponType.Week => redeemedAt.AddDays(7),
             DropboxCouponType.Month => redeemedAt.AddDays(30),
             DropboxCouponType.Forever => null,

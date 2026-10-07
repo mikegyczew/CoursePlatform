@@ -289,9 +289,15 @@ export function CoursePage({
               </p>
             )}
 
-            {purchasePlans && trialAccess && !trialAccess.hasAccess && (
+            {purchasePlans && trialAccess && (
               <div className="purchase-options">
                 <h3>Wybierz okres dostępu</h3>
+                {trialAccess.hasAccess && (
+                  <p className="status">
+                    Możesz dokupić dostęp także podczas aktywnego okresu.
+                    Nowy płatny okres zostanie doliczony po obecnym dostępie.
+                  </p>
+                )}
                 <p className="status">
                   Tryb testowy: płatność jest akceptowana automatycznie i nie
                   pobieramy opłaty.

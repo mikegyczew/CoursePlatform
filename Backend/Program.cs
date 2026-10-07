@@ -84,8 +84,10 @@ builder.Services
     .AddOptions<DropboxPricingOptions>()
     .Bind(builder.Configuration.GetSection("DropboxPricing"))
     .Validate(
-        options => options.WeeklyPricePln > 0,
-        "Dropbox weekly price must be greater than zero."
+        options =>
+            options.WeeklyPricePln > 0
+            && options.TestDurationDays > 0,
+        "Dropbox weekly price and test duration must be greater than zero."
     )
     .ValidateOnStart();
 builder.Services.AddHttpClient<IDropboxService, DropboxService>();
