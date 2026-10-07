@@ -3,6 +3,8 @@ import {
   confirmEmail,
   login,
   register,
+  requestPasswordReset,
+  resetPassword,
   saveAuth,
 } from "../services/authService";
 import { ThemeToggle, type Theme } from "../components/ThemeToggle";
@@ -22,10 +24,14 @@ export function LoginPage({
   const [confirmationToken, setConfirmationToken] = useState(
     () => new URLSearchParams(window.location.hash.slice(1)).get("confirmEmail")
   );
+  const [resetToken, setResetToken] = useState(
+    () => new URLSearchParams(window.location.hash.slice(1)).get("resetPassword")
+  );
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [forgotMode, setForgotMode] = useState(false);
   const [confirmationPassword, setConfirmationPassword] = useState("");
   const [confirmationPasswordRepeat, setConfirmationPasswordRepeat] =
     useState("");
@@ -44,7 +50,12 @@ export function LoginPage({
       setError(null);
       setNotice(null);
 
-      if (registerMode) {
+      if (forgotMode) {
+        await requestPasswordReset(email);
+        setNotice(
+          "Jeśli konto z tym adresem istnieje, wyślemy link do zmiany hasła. Sprawdź też folder spam."
+        );
+      } else if (registerMode) {
         await register(name, email);
         setNotice(
           "Zgłoszenie wysyłki linku potwierdzającego zostało przyjęte. Sprawdź skrzynkę odbiorczą i folder spam. Jeśli wiadomość nie dotrze, jej status sprawdzimy w Mailjet. Po otwarciu linku ustawisz hasło i dokończysz rejestrację."
@@ -100,9 +111,46 @@ export function LoginPage({
     }
   }
 
+  async function handleResetPassword(event: React.FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setNotice(null);
+
+    if (confirmationPassword !== confirmationPasswordRepeat) {
+      setError("Podane hasła nie są takie same.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      if (!resetToken) {
+        throw new Error("Brakuje tokenu do zmiany hasła.");
+      }
+
+      await resetPassword(resetToken, confirmationPassword);
+      window.history.replaceState({}, "", window.location.pathname);
+      setResetToken(null);
+      setConfirmationPassword("");
+      setConfirmationPasswordRepeat("");
+      setForgotMode(false);
+      setRegisterMode(false);
+      setNotice("Hasło zostało zmienione. Możesz się zalogować.");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Nie udało się zmienić hasła."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <main className="login-page">
-      <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+      <div className="login-toolbar">
+        <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+      </div>
       <div className="login-card">
         <div className="login-header">
           <h1>Platforma kursów online</h1>
@@ -110,14 +158,57 @@ export function LoginPage({
         </div>
 
         <h2>
-          {confirmationToken
+          {resetToken
+            ? "Ustaw nowe hasło"
+            : confirmationToken
             ? "Potwierdź email i ustaw hasło"
+            : forgotMode
+              ? "Przypomnij hasło"
             : registerMode
               ? "Utwórz konto"
               : "Zaloguj się"}
         </h2>
 
-        {confirmationToken ? (
+        {resetToken ? (
+          <form onSubmit={handleResetPassword}>
+            <label>
+              Nowe hasło
+              <input
+                type="password"
+                value={confirmationPassword}
+                onChange={(event) =>
+                  setConfirmationPassword(event.target.value)
+                }
+                required
+                minLength={6}
+                maxLength={100}
+                autoComplete="new-password"
+              />
+            </label>
+            <label>
+              Powtórz nowe hasło
+              <input
+                type="password"
+                value={confirmationPasswordRepeat}
+                onChange={(event) =>
+                  setConfirmationPasswordRepeat(event.target.value)
+                }
+                required
+                minLength={6}
+                maxLength={100}
+                autoComplete="new-password"
+              />
+            </label>
+            {error && <p className="login-error">{error}</p>}
+            <button
+              type="submit"
+              className="login-button"
+              disabled={loading}
+            >
+              {loading ? "Proszę czekać..." : "Zmień hasło"}
+            </button>
+          </form>
+        ) : confirmationToken ? (
           <form onSubmit={handleConfirmEmail}>
             <p className="login-notice">
               Potwierdź adres email i ustaw hasło, aby utworzyć konto.
@@ -161,6 +252,12 @@ export function LoginPage({
           </form>
         ) : (
           <form onSubmit={handleSubmit}>
+            {forgotMode && (
+              <p className="login-hint">
+                Reset e-mailem dotyczy kont użytkowników. Hasło
+                superadministratora zmienia się w ustawieniach hostingu.
+              </p>
+            )}
             {registerMode && (
               <label>
                 Imię
@@ -188,7 +285,7 @@ export function LoginPage({
               />
             </label>
 
-            {!registerMode && (
+            {!registerMode && !forgotMode && (
               <label>
                 Hasło
                 <input
@@ -216,26 +313,48 @@ export function LoginPage({
             >
               {loading
                 ? "Proszę czekać..."
-                : registerMode
+                : forgotMode
+                  ? "Wyślij link do zmiany hasła"
+                  : registerMode
                   ? "Wyślij link potwierdzający"
                   : "Zaloguj się"}
             </button>
+            {!registerMode && !forgotMode && (
+              <button
+                type="button"
+                className="login-switch"
+                onClick={() => {
+                  setForgotMode(true);
+                  setError(null);
+                  setNotice(null);
+                }}
+              >
+                Nie pamiętasz hasła?
+              </button>
+            )}
           </form>
         )}
 
-        {!confirmationToken && (
+        {!confirmationToken && !resetToken && (
           <button
             type="button"
             className="login-switch"
             onClick={() => {
-              setRegisterMode(!registerMode);
+              if (forgotMode) {
+                setRegisterMode(false);
+                setForgotMode(false);
+              } else {
+                setRegisterMode(!registerMode);
+              }
               setError(null);
               setNotice(null);
             }}
           >
-            {registerMode
-              ? "Mam już konto — zaloguj się"
-              : "Nie mam konta — zarejestruj się"}
+            {forgotMode
+              ? "Wróć do logowania"
+              : registerMode
+                ? "Mam już konto — zaloguj się"
+                : "Nie mam konta — zarejestruj się"}
           </button>
         )}
       </div>

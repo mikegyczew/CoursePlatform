@@ -29,10 +29,18 @@ email is confirmed. Coupon expiry emails are checked every 15 minutes;
 only redemptions created after this feature is enabled are eligible for a
 notification.
 
+Users can request a password reset from the login form. Reset links expire
+after one hour and can only be used once. Responses do not reveal whether an
+email address belongs to an account. Superadmin credentials are deployment
+secrets and must be changed in the hosting environment, not through email
+password reset.
+
 The administrator dashboard lists registered users, pending email
 confirmations, courses, coupon/access redemptions, and lesson progress.
-Deleting a user permanently deletes their related
-redemptions and progress. Configure `SUPERADMIN_*` and `EMAIL_*` as secrets in
+The superadmin can revoke a Dropbox coupon redemption from the access table;
+this immediately removes its access, while the coupon remains marked as used.
+Deleting a user permanently deletes their related redemptions and progress.
+Configure `SUPERADMIN_*` and `EMAIL_*` as secrets in
 the host or in an untracked local `.env` file; do not commit credential values.
 For local Compose, copy `.env.example` to `.env` and replace the blank
 superadmin credentials and Mailjet API credentials first.

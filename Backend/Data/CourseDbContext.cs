@@ -22,6 +22,8 @@ public class CourseDbContext : DbContext
         Set<DropboxCouponRedemption>();
     public DbSet<PendingRegistration> PendingRegistrations =>
         Set<PendingRegistration>();
+    public DbSet<PasswordResetToken> PasswordResetTokens =>
+        Set<PasswordResetToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -84,6 +86,20 @@ public class CourseDbContext : DbContext
         modelBuilder.Entity<PendingRegistration>()
             .HasIndex(registration => registration.ConfirmationTokenHash)
             .IsUnique();
+
+        modelBuilder.Entity<PasswordResetToken>()
+            .HasIndex(token => token.TokenHash)
+            .IsUnique();
+
+        modelBuilder.Entity<PasswordResetToken>()
+            .HasIndex(token => token.UserId)
+            .IsUnique();
+
+        modelBuilder.Entity<PasswordResetToken>()
+            .HasOne(token => token.User)
+            .WithMany()
+            .HasForeignKey(token => token.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<DropboxCouponRedemption>()
             .HasIndex(redemption => new

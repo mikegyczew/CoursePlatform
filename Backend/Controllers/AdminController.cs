@@ -41,4 +41,28 @@ public sealed class AdminController(IAdminService adminService) : ControllerBase
             ? NoContent()
             : NotFound();
     }
+
+    /// <summary>Revokes access granted by a coupon redemption.</summary>
+    [HttpDelete("access-grants/{redemptionId:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RevokeAccess(
+        int redemptionId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (redemptionId <= 0)
+        {
+            return NotFound();
+        }
+
+        return await adminService.RevokeAccessAsync(
+            redemptionId,
+            cancellationToken
+        )
+            ? NoContent()
+            : NotFound();
+    }
 }

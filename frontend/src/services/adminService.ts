@@ -87,3 +87,7 @@ export function getAdminDashboard(): Promise<AdminDashboard> {
 export function deleteAdminUser(userId: number): Promise<void> {
   return request(`/admin/users/${userId}`, "DELETE");
 }
+
+export function revokeAdminAccess(redemptionId: number): Promise<void> {
+  return request(`/admin/access-grants/${redemptionId}`, "DELETE");
+}

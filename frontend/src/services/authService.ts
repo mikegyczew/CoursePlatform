@@ -91,6 +91,47 @@ export async function confirmEmail(
   return response.json();
 }
 
+export async function requestPasswordReset(email: string): Promise<void> {
+  const response = await fetch(`${API_URL}/auth/forgot-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null) as
+      | { title?: string }
+      | null;
+    throw new Error(
+      problem?.title ?? "Nie udało się wysłać prośby o zmianę hasła."
+    );
+  }
+}
+
+export async function resetPassword(
+  token: string,
+  password: string
+): Promise<void> {
+  const response = await fetch(`${API_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ token, password }),
+  });
+
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null) as
+      | { title?: string }
+      | null;
+    throw new Error(
+      problem?.title ?? "Nie udało się zmienić hasła."
+    );
+  }
+}
+
 export function saveAuth(data: AuthResponse) {
   localStorage.setItem("authToken", data.token);
   localStorage.setItem("authUser", JSON.stringify({

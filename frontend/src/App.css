@@ -25,7 +25,7 @@ body {
   box-shadow:
     0 0 25px rgba(0, 170, 255, 0.18),
     inset 0 -1px 0 rgba(79, 210, 255, 0.2);
-  padding: 30px 0;
+  padding: 16px 0 24px;
 }
 
 .header::after {
@@ -1107,10 +1107,13 @@ body {
   padding: 2rem;
 }
 
-.login-page > .theme-toggle {
+.login-toolbar {
   position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
+  top: 1.25rem;
+  left: 50px;
+  right: 50px;
+  display: flex;
+  justify-content: flex-start;
 }
 
 .login-card {
@@ -1225,6 +1228,13 @@ body {
   color: #a4f0c2;
 }
 
+.login-hint {
+  margin: 0;
+  color: #9bb4c4;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .courses-heading,
 .admin-page-heading {
   display: flex;
@@ -1332,19 +1342,41 @@ body {
 
 .header-content {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 2rem;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-.user-area {
+.header-toolbar,
+.header-toolbar-left,
+.header-toolbar-right {
   display: flex;
   align-items: center;
+}
+
+.header-toolbar {
+  width: 100%;
+  justify-content: space-between;
   gap: 1rem;
+}
+
+.header-toolbar-left,
+.header-toolbar-right {
+  gap: 0.75rem;
+}
+
+.header-toolbar-right {
+  margin-left: auto;
+}
+
+.header-brand {
+  text-align: center;
+}
+
+.user-name {
   color: #e8f7ff;
 }
 
-.user-area button {
+.header-toolbar button:not(.theme-toggle) {
   padding: 0.5rem 0.9rem;
   border: 1px solid rgba(0, 191, 255, 0.3);
   background: transparent;
@@ -1352,53 +1384,34 @@ body {
   cursor: pointer;
 }
 
-.user-area button:hover {
+.header-toolbar button:not(.theme-toggle):hover {
   background: rgba(0, 191, 255, 0.1);
 }
 
 @media (max-width: 700px) {
-  .header-content {
-    align-items: flex-start;
-  }
-
-  .user-area {
-    flex-direction: column;
-    align-items: flex-end;
-  }
-
   .login-card {
     padding: 1.5rem;
   }
 }
 
-/* WYŚRODKOWANIE NAGŁÓWKA */
-.header-content {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.header-content > div:first-child {
-  text-align: center;
-}
-
-.user-area {
-  position: absolute;
-  right: 0;
-}
-
 @media (max-width: 700px) {
-  .header-content {
-    justify-content: center;
+  .header-toolbar {
+    align-items: flex-start;
   }
 
-  .user-area {
-    position: static;
+  .header-toolbar-right {
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
-  .header-content {
-    flex-direction: column;
+  .user-name {
+    flex-basis: 100%;
+    text-align: right;
+  }
+
+  .login-toolbar {
+    left: 1.25rem;
+    right: 1.25rem;
   }
 }
 
@@ -1629,6 +1642,10 @@ body {
   border-color: #a8dfba;
 }
 
+:root[data-theme="light"] .login-hint {
+  color: #49677b;
+}
+
 :root[data-theme="light"] .admin-page-heading h2,
 :root[data-theme="light"] .admin-section h3 {
   color: #126c99;
@@ -1684,11 +1701,20 @@ body {
   color: #0878aa;
 }
 
-:root[data-theme="light"] .user-area .theme-toggle {
+:root[data-theme="light"] .header-toolbar-right .theme-toggle {
   color: #126c99;
   border-color: #b7d4e6;
 }
 
-:root[data-theme="light"] .user-area .theme-toggle:hover {
+:root[data-theme="light"] .header-toolbar-right .theme-toggle:hover {
   background: #e5f3fa;
+}
+
+:root[data-theme="light"] .user-name {
+  color: #34495b;
+}
+
+:root[data-theme="light"] .header-toolbar button:not(.theme-toggle) {
+  color: #126c99;
+  border-color: #b7d4e6;
 }

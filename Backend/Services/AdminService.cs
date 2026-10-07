@@ -117,4 +117,15 @@ public sealed class AdminService(CourseDbContext dbContext) : IAdminService
             .ExecuteDeleteAsync(cancellationToken);
         return deleted > 0;
     }
+
+    public async Task<bool> RevokeAccessAsync(
+        int redemptionId,
+        CancellationToken cancellationToken
+    )
+    {
+        var deleted = await dbContext.DropboxCouponRedemptions
+            .Where(redemption => redemption.Id == redemptionId)
+            .ExecuteDeleteAsync(cancellationToken);
+        return deleted > 0;
+    }
 }

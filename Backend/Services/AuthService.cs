@@ -147,6 +147,121 @@ public class AuthService
         return CreateAuthResponse(user);
     }
 
+    public async Task RequestPasswordResetAsync(
+        string emailAddress,
+        CancellationToken cancellationToken
+    )
+    {
+        var email = emailAddress.Trim().ToLowerInvariant();
+        if (IsSuperAdminEmail(email))
+        {
+            return;
+        }
+
+        var user = await _dbContext.Users.SingleOrDefaultAsync(
+            item => item.Email == email && item.EmailConfirmed,
+            cancellationToken
+        );
+        if (user is null)
+        {
+            return;
+        }
+
+        await _dbContext.PasswordResetTokens
+            .Where(token => token.ExpiresAt <= DateTime.UtcNow)
+            .ExecuteDeleteAsync(cancellationToken);
+        await _dbContext.PasswordResetTokens
+            .Where(token => token.UserId == user.Id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        var token = CreateConfirmationToken();
+        _dbContext.PasswordResetTokens.Add(new PasswordResetToken
+        {
+            UserId = user.Id,
+            TokenHash = HashToken(token),
+            ExpiresAt = DateTime.UtcNow.AddHours(1)
+        });
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            var frontendUrl = _configuration["Email:FrontendUrl"];
+            if (string.IsNullOrWhiteSpace(frontendUrl))
+            {
+                throw new EmailDeliveryException(
+                    "The frontend URL for password reset is not configured."
+                );
+            }
+
+            var resetUrl =
+                $"{frontendUrl.TrimEnd('/')}/#resetPassword={Uri.EscapeDataString(token)}";
+            await _emailService.SendAsync(
+                email,
+                "Zresetuj hasło do CoursePlatform",
+                $"<p>Cześć {System.Net.WebUtility.HtmlEncode(user.Name)},</p>"
+                    + "<p>Otrzymaliśmy prośbę o zmianę hasła do Twojego konta.</p>"
+                    + $"<p><a href=\"{System.Net.WebUtility.HtmlEncode(resetUrl)}\">Ustaw nowe hasło</a></p>"
+                    + "<p>Link jest ważny przez godzinę. Jeśli to nie Ty wysłałeś prośbę, zignoruj tę wiadomość.</p>",
+                cancellationToken
+            );
+        }
+        catch (Exception exception) when (
+            exception is EmailDeliveryException or OperationCanceledException
+        )
+        {
+            await _dbContext.PasswordResetTokens
+                .Where(resetToken => resetToken.UserId == user.Id)
+                .ExecuteDeleteAsync(CancellationToken.None);
+            throw;
+        }
+    }
+
+    public async Task<bool> ResetPasswordAsync(
+        string token,
+        string password,
+        CancellationToken cancellationToken
+    )
+    {
+        var tokenHash = HashToken(token);
+        var now = DateTime.UtcNow;
+        var resetToken = await _dbContext.PasswordResetTokens
+            .Where(item =>
+                item.TokenHash == tokenHash && item.ExpiresAt > now
+            )
+            .Select(item => new { item.Id, item.UserId })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (resetToken is null)
+        {
+            return false;
+        }
+
+        await using var transaction = await _dbContext.Database
+            .BeginTransactionAsync(cancellationToken);
+        var deleted = await _dbContext.PasswordResetTokens
+            .Where(item =>
+                item.Id == resetToken.Id && item.ExpiresAt > DateTime.UtcNow
+            )
+            .ExecuteDeleteAsync(cancellationToken);
+        if (deleted != 1)
+        {
+            return false;
+        }
+
+        var user = await _dbContext.Users.SingleOrDefaultAsync(
+            item => item.Id == resetToken.UserId && item.EmailConfirmed,
+            cancellationToken
+        );
+        if (user is null)
+        {
+            return false;
+        }
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return true;
+    }
+
     public async Task<AuthResponseDto?> LoginAsync(
         LoginDto dto,
         CancellationToken cancellationToken

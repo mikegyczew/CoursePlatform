@@ -12,6 +12,7 @@ import {
   AUTH_REQUIRED_EVENT,
   getAuthUser,
   logout,
+  type AuthUser,
 } from "./services/authService";
 import type { Course } from "./types/course";
 
@@ -21,6 +22,55 @@ function getInitialTheme(): Theme {
   return localStorage.getItem(THEME_STORAGE_KEY) === "light"
     ? "light"
     : "dark";
+}
+
+interface AppHeaderProps {
+  user: AuthUser | null;
+  theme: Theme;
+  onToggleTheme: () => void;
+  onLogout: () => void;
+  showAdmin: boolean;
+  onToggleAdmin: () => void;
+}
+
+function AppHeader({
+  user,
+  theme,
+  onToggleTheme,
+  onLogout,
+  showAdmin,
+  onToggleAdmin,
+}: AppHeaderProps) {
+  return (
+    <header className="header">
+      <div className="container header-content">
+        <nav className="header-toolbar" aria-label="Nawigacja użytkownika">
+          <div className="header-toolbar-left">
+            {user?.role === "SuperAdmin" && (
+              <button type="button" onClick={onToggleAdmin}>
+                {showAdmin ? "Kursy" : "Panel administratora"}
+              </button>
+            )}
+          </div>
+          <div className="header-toolbar-right">
+            {user && <span className="user-name">{user.name}</span>}
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+            {user && (
+              <button type="button" onClick={onLogout}>Wyloguj</button>
+            )}
+          </div>
+        </nav>
+        <div className="header-brand">
+          <h1>Platforma kursów online</h1>
+          <p>
+            {showAdmin
+              ? "Panel superadministratora"
+              : "Pierwszy krok do lepszego ja"}
+          </p>
+        </div>
+      </div>
+    </header>
+  );
 }
 
 function App() {
@@ -114,18 +164,18 @@ function App() {
   if (showAdmin && user?.role === "SuperAdmin") {
     return (
       <div className="app">
-        <header className="header">
-          <div className="container header-content">
-            <div>
-              <h1>Platforma kursów online</h1>
-              <p>Panel superadministratora</p>
-            </div>
-            <div className="user-area">
-              <span>{user.name}</span>
-              <button type="button" onClick={handleLogout}>Wyloguj</button>
-            </div>
-          </div>
-        </header>
+        <AppHeader
+          user={user}
+          theme={theme}
+          onToggleTheme={() =>
+            setTheme((current) =>
+              current === "dark" ? "light" : "dark"
+            )
+          }
+          onLogout={handleLogout}
+          showAdmin={showAdmin}
+          onToggleAdmin={() => setShowAdmin(false)}
+        />
         <AdminPage onBack={() => setShowAdmin(false)} />
       </div>
     );
@@ -137,34 +187,18 @@ function App() {
   ) {
     return (
       <div className="app">
-        <header className="header">
-          <div className="container header-content">
-            <div>
-              <h1>Platforma kursów online</h1>
-              <p>Pierwszy krok do lepszego ja</p>
-            </div>
-
-            <div className="user-area">
-              <span>{user?.name}</span>
-
-              <ThemeToggle
-                theme={theme}
-                onToggle={() =>
-                  setTheme((current) =>
-                    current === "dark" ? "light" : "dark"
-                  )
-                }
-              />
-
-              <button
-                type="button"
-                onClick={handleLogout}
-              >
-                Wyloguj
-              </button>
-            </div>
-          </div>
-        </header>
+        <AppHeader
+          user={user}
+          theme={theme}
+          onToggleTheme={() =>
+            setTheme((current) =>
+              current === "dark" ? "light" : "dark"
+            )
+          }
+          onLogout={handleLogout}
+          showAdmin={false}
+          onToggleAdmin={() => setShowAdmin(true)}
+        />
 
         <LessonPage
           courseId={selectedCourse.id}
@@ -179,34 +213,18 @@ function App() {
   if (selectedCourse) {
     return (
       <div className="app">
-        <header className="header">
-          <div className="container header-content">
-            <div>
-              <h1>Platforma kursów online</h1>
-              <p>Pierwszy krok do lepszego ja</p>
-            </div>
-
-            <div className="user-area">
-              <span>{user?.name}</span>
-
-              <ThemeToggle
-                theme={theme}
-                onToggle={() =>
-                  setTheme((current) =>
-                    current === "dark" ? "light" : "dark"
-                  )
-                }
-              />
-
-              <button
-                type="button"
-                onClick={handleLogout}
-              >
-                Wyloguj
-              </button>
-            </div>
-          </div>
-        </header>
+        <AppHeader
+          user={user}
+          theme={theme}
+          onToggleTheme={() =>
+            setTheme((current) =>
+              current === "dark" ? "light" : "dark"
+            )
+          }
+          onLogout={handleLogout}
+          showAdmin={false}
+          onToggleAdmin={() => setShowAdmin(true)}
+        />
 
         <CoursePage
           course={selectedCourse}
@@ -221,47 +239,23 @@ function App() {
 
   return (
     <div className="app">
-      <header className="header">
-        <div className="container header-content">
-          <div>
-            <h1>Platforma kursów online</h1>
-            <p>Pierwszy krok do lepszego ja</p>
-          </div>
-
-          <div className="user-area">
-            <span>{user?.name}</span>
-
-            <ThemeToggle
-              theme={theme}
-              onToggle={() =>
-                setTheme((current) =>
-                  current === "dark" ? "light" : "dark"
-                )
-              }
-            />
-
-            <button
-              type="button"
-              onClick={handleLogout}
-            >
-              Wyloguj
-            </button>
-          </div>
-        </div>
-      </header>
+      <AppHeader
+        user={user}
+        theme={theme}
+        onToggleTheme={() =>
+          setTheme((current) =>
+            current === "dark" ? "light" : "dark"
+          )
+        }
+        onLogout={handleLogout}
+        showAdmin={false}
+        onToggleAdmin={() => setShowAdmin(true)}
+      />
 
       <main className="container">
         <section className="courses-section">
           <div className="courses-heading">
             <h2>Dostępne kursy</h2>
-            {user?.role === "SuperAdmin" && (
-              <button
-                type="button"
-                onClick={() => setShowAdmin(true)}
-              >
-                Panel administracyjny
-              </button>
-            )}
           </div>
 
           {loading && (

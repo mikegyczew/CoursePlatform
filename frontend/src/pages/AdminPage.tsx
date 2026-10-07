@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   deleteAdminUser,
   getAdminDashboard,
+  revokeAdminAccess,
   type AdminDashboard,
 } from "../services/adminService";
 
@@ -23,6 +24,7 @@ export function AdminPage({ onBack }: AdminPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
+  const [revokingGrantId, setRevokingGrantId] = useState<number | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -86,6 +88,35 @@ export function AdminPage({ onBack }: AdminPageProps) {
       );
     } finally {
       setDeletingUserId(null);
+    }
+  }
+
+  async function removeAccessGrant(
+    grantId: number,
+    email: string,
+    coursePath: string | null
+  ) {
+    if (
+      !window.confirm(
+        `Cofnąć dostęp użytkownika ${email} do kursu ${coursePath ?? "Dropbox"}?`
+      )
+    ) {
+      return;
+    }
+
+    setRevokingGrantId(grantId);
+    setError(null);
+    try {
+      await revokeAdminAccess(grantId);
+      await reload();
+    } catch (revokeError) {
+      setError(
+        revokeError instanceof Error
+          ? revokeError.message
+          : "Nie udało się cofnąć dostępu."
+      );
+    } finally {
+      setRevokingGrantId(null);
     }
   }
 
@@ -206,7 +237,7 @@ export function AdminPage({ onBack }: AdminPageProps) {
             <div className="admin-table-wrap">
               <table className="admin-table">
                 <thead>
-                  <tr><th>Email</th><th>Kurs</th><th>Typ</th><th>Aktywowano</th><th>Wygasa</th></tr>
+                  <tr><th>Email</th><th>Kurs</th><th>Typ</th><th>Aktywowano</th><th>Wygasa</th><th /></tr>
                 </thead>
                 <tbody>
                   {dashboard.accessGrants.map((grant) => (
@@ -216,10 +247,26 @@ export function AdminPage({ onBack }: AdminPageProps) {
                       <td>{grant.type}</td>
                       <td>{formatDate(grant.redeemedAt)}</td>
                       <td>{formatDate(grant.expiresAt)}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="admin-delete-button"
+                          disabled={revokingGrantId === grant.id}
+                          onClick={() => void removeAccessGrant(
+                            grant.id,
+                            grant.email,
+                            grant.coursePath
+                          )}
+                        >
+                          {revokingGrantId === grant.id
+                            ? "Cofanie..."
+                            : "Cofnij dostęp"}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                   {dashboard.accessGrants.length === 0 && (
-                    <tr><td colSpan={5}>Brak aktywacji kuponów.</td></tr>
+                    <tr><td colSpan={6}>Brak aktywacji kuponów.</td></tr>
                   )}
                 </tbody>
               </table>

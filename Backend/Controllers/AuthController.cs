@@ -83,6 +83,52 @@ public class AuthController : ControllerBase
             : Ok(result);
     }
 
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordDto dto,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            await _authService.RequestPasswordResetAsync(
+                dto.Email,
+                cancellationToken
+            );
+        }
+        catch (EmailDeliveryException exception)
+        {
+            _logger.LogError(
+                exception,
+                "Password reset email delivery failed."
+            );
+        }
+
+        return Accepted(new
+        {
+            message = "Jeśli konto z tym adresem istnieje, wyślemy na niego link do zmiany hasła."
+        });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword(
+        [FromBody] ResetPasswordDto dto,
+        CancellationToken cancellationToken
+    )
+    {
+        var reset = await _authService.ResetPasswordAsync(
+            dto.Token,
+            dto.Password,
+            cancellationToken
+        );
+        return reset
+            ? Ok(new { message = "Hasło zostało zmienione. Możesz się zalogować." })
+            : Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Link do zmiany hasła jest nieprawidłowy lub wygasł."
+            );
+    }
+
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponseDto>> Login(
         LoginDto dto,

@@ -12,4 +12,9 @@ public interface IAdminService
         int userId,
         CancellationToken cancellationToken
     );
+
+    Task<bool> RevokeAccessAsync(
+        int redemptionId,
+        CancellationToken cancellationToken
+    );
 }
