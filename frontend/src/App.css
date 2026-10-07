@@ -1247,6 +1247,10 @@ body {
   margin-bottom: 0;
 }
 
+.courses-heading {
+  margin-bottom: 28px;
+}
+
 .courses-heading button,
 .admin-page-heading button,
 .admin-delete-button {
@@ -1343,7 +1347,7 @@ body {
 .header-content {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 3.5rem;
 }
 
 .header-toolbar,
