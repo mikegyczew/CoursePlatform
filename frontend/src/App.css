@@ -1369,6 +1369,10 @@ body {
 }
 
 .course-access-badge {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid rgba(0, 191, 255, 0.3);
+  border-radius: 4px;
+  background: transparent;
   color: #e8f7ff;
   font-size: 0.9rem;
 }
@@ -1725,6 +1729,7 @@ body {
 
 :root[data-theme="light"] .course-access-badge {
   color: #34495b;
+  border-color: #b7d4e6;
 }
 
 :root[data-theme="light"] .header-toolbar button:not(.theme-toggle) {

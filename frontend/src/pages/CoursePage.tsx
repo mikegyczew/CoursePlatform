@@ -277,13 +277,13 @@ export function CoursePage({
               </p>
             )}
             {trialAccess && (
-              <h2>
-                {trialAccess.hasAccess
-                  ? "Masz dostęp do szkolenia"
-                  : trialAccess.hasRedeemedCoupon
+              !trialAccess.hasAccess && (
+                <h2>
+                  {trialAccess.hasRedeemedCoupon
                     ? "Dostęp wygasł"
                     : "Odblokuj szkolenie"}
-              </h2>
+                </h2>
+              )
             )}
             {trialAccess && (
               <div className="coupon-access">
