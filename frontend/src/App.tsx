@@ -54,7 +54,7 @@ function AppHeader({
                 {showAdmin ? "Kursy" : "Panel administratora"}
               </button>
             )}
-            {courseAccess?.hasAccess && (
+            {user?.role !== "SuperAdmin" && courseAccess?.hasAccess && (
               <span className="course-access-badge">
                 {courseAccess.expiresAt
                   ? `Dostęp do ${new Date(courseAccess.expiresAt).toLocaleString("pl-PL")}`

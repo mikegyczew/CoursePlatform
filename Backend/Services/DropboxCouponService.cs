@@ -266,17 +266,13 @@ public sealed class DropboxCouponService(
             _pricingOptions.TestCouponCode,
             StringComparison.OrdinalIgnoreCase
         );
+        var testCouponCodeHash = HashCode($"{normalizedCode}:{course.Path}");
         var coupon = isTestCoupon
             ? await dbContext.DropboxCoupons.SingleOrDefaultAsync(
                 item =>
                     item.IsSharedTest
-                    && (
-                        item.CoursePath == course.Path
-                        || (
-                            item.CoursePath == null
-                            && course.Name == LegacyCouponCourseName
-                        )
-                    ),
+                    && item.CoursePath == course.Path
+                    && item.CodeHash == testCouponCodeHash,
                 cancellationToken
             )
             : await dbContext.DropboxCoupons.SingleOrDefaultAsync(
@@ -291,6 +287,34 @@ public sealed class DropboxCouponService(
                     ),
                 cancellationToken
             );
+
+        if (
+            coupon is null
+            && isTestCoupon
+            && course.Name == LegacyCouponCourseName
+        )
+        {
+            coupon = await dbContext.DropboxCoupons.SingleOrDefaultAsync(
+                item =>
+                    item.IsSharedTest
+                    && item.CoursePath == null
+                    && item.CodeHash == HashCode(normalizedCode),
+                cancellationToken
+            );
+        }
+
+        if (coupon is null && isTestCoupon)
+        {
+            coupon = new DropboxCoupon
+            {
+                CodeHash = testCouponCodeHash,
+                CoursePath = course.Path,
+                Type = DropboxCouponType.Test,
+                IsSharedTest = true,
+                IsRedeemed = false
+            };
+            dbContext.DropboxCoupons.Add(coupon);
+        }
 
         if (coupon is null)
         {
