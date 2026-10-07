@@ -1,9 +1,11 @@
 # Administrator and email setup
 
 The administrator account is configured outside the database. Set both
-`SUPERADMIN_EMAIL` and `SUPERADMIN_PASSWORD` in the deployment environment.
-The password must contain at least 16 characters. The configured administrator
-signs in through the usual login form and receives the `SuperAdmin` API role.
+`SUPERADMIN_EMAIL` and `SUPERADMIN_PASSWORD` in the deployment environment
+(or use the .NET configuration names `SuperAdmin__Email` and
+`SuperAdmin__Password`). The password must contain at least 16 characters.
+The configured administrator signs in through the usual login form and
+receives the `SuperAdmin` API role.
 If both are empty, the rest of the site still starts but the admin account and
 panel are disabled; setting only one is a configuration error.
 

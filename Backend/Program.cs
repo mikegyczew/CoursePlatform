@@ -8,6 +8,30 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var superAdminAliases = new Dictionary<string, string?>();
+if (
+    string.IsNullOrWhiteSpace(builder.Configuration["SuperAdmin:Email"])
+    && !string.IsNullOrWhiteSpace(builder.Configuration["SUPERADMIN_EMAIL"])
+)
+{
+    superAdminAliases["SuperAdmin:Email"] =
+        builder.Configuration["SUPERADMIN_EMAIL"];
+}
+
+if (
+    string.IsNullOrWhiteSpace(builder.Configuration["SuperAdmin:Password"])
+    && !string.IsNullOrWhiteSpace(builder.Configuration["SUPERADMIN_PASSWORD"])
+)
+{
+    superAdminAliases["SuperAdmin:Password"] =
+        builder.Configuration["SUPERADMIN_PASSWORD"];
+}
+
+if (superAdminAliases.Count > 0)
+{
+    builder.Configuration.AddInMemoryCollection(superAdminAliases);
+}
+
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 builder.Services.AddMemoryCache();
