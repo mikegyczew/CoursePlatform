@@ -155,7 +155,7 @@ public sealed class DropboxCouponService(
         await using var transaction = await dbContext.Database
             .BeginTransactionAsync(cancellationToken);
         var redeemedAt = DateTime.UtcNow;
-        var renewalStartsAt = await dbContext.DropboxCouponRedemptions
+        var activeExpirations = await dbContext.DropboxCouponRedemptions
             .Where(item =>
                 item.UserId == userId
                 && (
@@ -165,11 +165,16 @@ public sealed class DropboxCouponService(
                         && course.Name == LegacyCouponCourseName
                     )
                 )
-                && item.ExpiresAt > redeemedAt
+                && (item.ExpiresAt == null || item.ExpiresAt > redeemedAt)
             )
-            .Select(item => item.ExpiresAt!.Value)
-            .DefaultIfEmpty(redeemedAt)
-            .MaxAsync(cancellationToken);
+            .Select(item => item.ExpiresAt)
+            .ToListAsync(cancellationToken);
+        var hasPermanentAccess = activeExpirations.Any(
+            expiration => expiration is null
+        );
+        var renewalStartsAt = activeExpirations
+            .Where(expiration => expiration.HasValue)
+            .Max() ?? redeemedAt;
         var coupon = new DropboxCoupon
         {
             CodeHash = HashCode(GenerateCode()),
@@ -184,7 +189,9 @@ public sealed class DropboxCouponService(
             Coupon = coupon,
             UserId = userId,
             RedeemedAt = redeemedAt,
-            ExpiresAt = GetExpiry(type, renewalStartsAt),
+            ExpiresAt = hasPermanentAccess
+                ? null
+                : GetExpiry(type, renewalStartsAt),
             NotifyOnExpiry = true
         });
 
