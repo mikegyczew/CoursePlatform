@@ -365,7 +365,7 @@ public sealed class DropboxCouponService(
         var redeemedAt = DateTime.UtcNow;
         var redemption = new DropboxCouponRedemption
         {
-            CouponId = coupon.Id,
+            Coupon = coupon,
             UserId = userId,
             RedeemedAt = redeemedAt,
             ExpiresAt = GetExpiry(coupon.Type, redeemedAt),
