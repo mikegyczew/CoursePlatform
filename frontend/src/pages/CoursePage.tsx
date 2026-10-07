@@ -41,6 +41,7 @@ export function CoursePage({
   const [coupon, setCoupon] = useState("");
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponSectionOpen, setCouponSectionOpen] = useState(false);
+  const [purchaseOptionsOpen, setPurchaseOptionsOpen] = useState(false);
   const [redeemingCoupon, setRedeemingCoupon] = useState(false);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [processingPlan, setProcessingPlan] =
@@ -121,6 +122,29 @@ export function CoursePage({
     return () => window.clearTimeout(expiryTimer);
   }, [course.id, trialAccess]);
 
+  useEffect(() => {
+    if (!purchaseConfirmed) {
+      return;
+    }
+
+    const transitionTimer = window.setTimeout(() => {
+      setPurchaseConfirmed(false);
+      setLoading(true);
+      void getLessons(course.id)
+        .then(setLessons)
+        .catch((err: unknown) => {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Nie udało się pobrać lekcji."
+          );
+        })
+        .finally(() => setLoading(false));
+    }, 1800);
+
+    return () => window.clearTimeout(transitionTimer);
+  }, [course.id, purchaseConfirmed]);
+
   async function handleRedeemCoupon(
     event: FormEvent<HTMLFormElement>
   ) {
@@ -162,18 +186,6 @@ export function CoursePage({
       const access = await startDropboxPurchase(course.id, type);
       setTrialAccess(access);
       setPurchaseConfirmed(true);
-      setLoading(true);
-      try {
-        setLessons(await getLessons(course.id));
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Nie udało się pobrać lekcji."
-        );
-      } finally {
-        setLoading(false);
-      }
     } catch (err) {
       setPurchaseError(
         err instanceof Error
@@ -186,7 +198,8 @@ export function CoursePage({
   }
 
   const canListLessons =
-    course.id >= 0 || trialAccess?.hasAccess === true;
+    course.id >= 0
+    || (trialAccess?.hasAccess === true && !purchaseConfirmed);
 
   return (
     <main className="container course-page">
@@ -222,7 +235,19 @@ export function CoursePage({
         <p className="status">Sprawdzanie dostępu do szkolenia...</p>
       )}
 
-      {course.id < 0 && !loading && (trialAccess || error) && (
+      {purchaseConfirmed && (
+        <section className="lessons-section coupon-access-section">
+          <p className="status">
+            Zakup został zaakceptowany, a dostęp do szkolenia aktywowano.
+            Tryb testowy: opłata nie została pobrana. Za chwilę otworzymy kurs.
+          </p>
+        </section>
+      )}
+
+      {course.id < 0
+        && !loading
+        && !purchaseConfirmed
+        && (trialAccess || error) && (
         <section className="lessons-section coupon-access-section">
             {error && (
               <p className="status error">
@@ -292,13 +317,6 @@ export function CoursePage({
               </p>
             )}
 
-            {purchaseConfirmed && (
-              <p className="status">
-                Testowa płatność została zaakceptowana, a kupon automatycznie
-                aktywowany. Żadna opłata nie została pobrana.
-              </p>
-            )}
-
             {purchasePlans
               && trialAccess
               && (
@@ -306,6 +324,7 @@ export function CoursePage({
                 || purchasePlans.monthAvailable
                 || purchasePlans.foreverAvailable
               )
+              && (!trialAccess.hasAccess || purchaseOptionsOpen)
               && (
               <div className="purchase-options">
                 <h3>Wybierz okres dostępu</h3>
@@ -354,6 +373,28 @@ export function CoursePage({
                 )}
               </div>
             )}
+            {trialAccess
+              && trialAccess.hasAccess
+              && trialAccess.expiresAt
+              && purchasePlans
+              && (
+                purchasePlans.weekAvailable
+                || purchasePlans.monthAvailable
+                || purchasePlans.foreverAvailable
+              ) && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  aria-expanded={purchaseOptionsOpen}
+                  onClick={() =>
+                    setPurchaseOptionsOpen((isOpen) => !isOpen)
+                  }
+                >
+                  {purchaseOptionsOpen
+                    ? "Ukryj opcje przedłużenia"
+                    : "Przedłuż lub dokup dostęp"}
+                </button>
+              )}
             {purchasePlansError && (
               <p className="status error">
                 Nie udało się pobrać cen i planów zakupu: {purchasePlansError}
