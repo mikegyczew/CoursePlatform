@@ -16,6 +16,11 @@ public sealed class DropboxLessonProgressService(
         CancellationToken cancellationToken
     )
     {
+        if (userId == SuperAdminOptions.UserId)
+        {
+            return [];
+        }
+
         var lessonPaths = await dropboxService.GetLessonPathsAsync(
             courseId,
             cancellationToken
@@ -56,6 +61,11 @@ public sealed class DropboxLessonProgressService(
         CancellationToken cancellationToken
     )
     {
+        if (userId == SuperAdminOptions.UserId)
+        {
+            return true;
+        }
+
         if (!await dbContext.Users.AnyAsync(
                 user => user.Id == userId,
                 cancellationToken

@@ -282,7 +282,7 @@ public class AuthService
             return CreateAuthResponse(
                 new User
                 {
-                    Id = -1,
+                    Id = SuperAdminOptions.UserId,
                     Email = adminEmail,
                     Name = "Superadmin",
                     PasswordHash = string.Empty

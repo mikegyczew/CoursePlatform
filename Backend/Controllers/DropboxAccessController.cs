@@ -64,10 +64,11 @@ public sealed class DropboxAccessController(
     public ActionResult<DropboxPurchasePlansResponse> GetPurchasePlans()
     {
         var pricing = pricingOptions.Value;
+        var isSuperAdmin = User.IsInRole("SuperAdmin");
         return Ok(new DropboxPurchasePlansResponse(
-            WeekAvailable: true,
-            MonthAvailable: true,
-            ForeverAvailable: true,
+            WeekAvailable: !isSuperAdmin,
+            MonthAvailable: !isSuperAdmin,
+            ForeverAvailable: !isSuperAdmin,
             WeekPricePln: pricing.WeeklyPricePln,
             MonthPricePln: pricing.MonthlyPricePln,
             ForeverPricePln: pricing.ForeverPricePln
@@ -128,6 +129,16 @@ public sealed class DropboxAccessController(
         catch (DropboxApiException exception)
         {
             return DropboxFailure(exception, "Dropbox course lookup failed.");
+        }
+
+        if (userId.Value == SuperAdminOptions.UserId)
+        {
+            Response.Headers.CacheControl = "no-store";
+            return Ok(await couponService.GetStatusAsync(
+                userId.Value,
+                request.CourseId,
+                cancellationToken
+            ));
         }
 
         var paymentSucceeded = await paymentService.ProcessPaymentAsync(

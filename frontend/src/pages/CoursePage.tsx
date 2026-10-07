@@ -40,6 +40,7 @@ export function CoursePage({
     useState<string | null>(null);
   const [coupon, setCoupon] = useState("");
   const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponSectionOpen, setCouponSectionOpen] = useState(false);
   const [redeemingCoupon, setRedeemingCoupon] = useState(false);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [processingPlan, setProcessingPlan] =
@@ -237,48 +238,57 @@ export function CoursePage({
                     : "Odblokuj szkolenie"}
               </h2>
             )}
-            {trialAccess && !trialAccess.hasAccess && (
-              <>
-                <p className="status">
-                  {trialAccess.hasRedeemedCoupon
-                    ? "Wykorzystany kupon wygasł. Wprowadź nowy kupon lub kup dostęp."
-                    : "Wprowadź otrzymany kupon albo kup dostęp do szkolenia."}
-                </p>
-                <form
-                  className="coupon-form"
-                  onSubmit={handleRedeemCoupon}
-                >
-                  <label htmlFor="dropbox-coupon">
-                    Kod kuponu
-                  </label>
-                  <input
-                    id="dropbox-coupon"
-                    type="text"
-                    value={coupon}
-                    onChange={(event) => setCoupon(event.target.value)}
-                    autoComplete="off"
-                    required
-                  />
-                  <button
-                    type="submit"
-                    disabled={redeemingCoupon || !coupon.trim()}
-                  >
-                    {redeemingCoupon
-                      ? "Sprawdzanie kuponu..."
-                      : "Aktywuj kupon"}
-                  </button>
-                </form>
-                {couponError && (
-                  <p className="status error">{couponError}</p>
+            {trialAccess && (
+              <div className="coupon-access">
+                {!trialAccess.hasAccess && (
+                  <>
+                    <p className="status">
+                      {trialAccess.hasRedeemedCoupon
+                        ? "Wykorzystany kupon wygasł. Wprowadź nowy kupon lub kup dostęp."
+                        : "Wprowadź otrzymany kupon albo kup dostęp do szkolenia."}
+                    </p>
+                    <CouponForm
+                      coupon={coupon}
+                      onCouponChange={setCoupon}
+                      onSubmit={handleRedeemCoupon}
+                      couponError={couponError}
+                      redeemingCoupon={redeemingCoupon}
+                    />
+                  </>
                 )}
-              </>
+                {trialAccess.hasAccess && trialAccess.expiresAt && (
+                  <>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      aria-expanded={couponSectionOpen}
+                      onClick={() =>
+                        setCouponSectionOpen((isOpen) => !isOpen)
+                      }
+                    >
+                      {couponSectionOpen
+                        ? "Ukryj pole kuponu"
+                        : "Masz dodatkowy kupon? Wpisz go"}
+                    </button>
+                    {couponSectionOpen && (
+                      <CouponForm
+                        coupon={coupon}
+                        onCouponChange={setCoupon}
+                        onSubmit={handleRedeemCoupon}
+                        couponError={couponError}
+                        redeemingCoupon={redeemingCoupon}
+                      />
+                    )}
+                  </>
+                )}
+              </div>
             )}
 
-            {trialAccess?.expiresAt && trialAccess.hasAccess && (
+            {trialAccess?.hasAccess && (
               <p className="status">
-                Dostęp jest aktywny do{" "}
-                {new Date(trialAccess.expiresAt).toLocaleString("pl-PL")}.
-                Możesz przedłużyć go kolejnym zakupem.
+                {trialAccess.expiresAt
+                  ? `Dostęp jest aktywny do ${new Date(trialAccess.expiresAt).toLocaleString("pl-PL")}. Możesz przedłużyć go kolejnym zakupem.`
+                  : "Masz bezterminowy dostęp do tego szkolenia."}
               </p>
             )}
 
@@ -289,7 +299,14 @@ export function CoursePage({
               </p>
             )}
 
-            {purchasePlans && trialAccess && (
+            {purchasePlans
+              && trialAccess
+              && (
+                purchasePlans.weekAvailable
+                || purchasePlans.monthAvailable
+                || purchasePlans.foreverAvailable
+              )
+              && (
               <div className="purchase-options">
                 <h3>Wybierz okres dostępu</h3>
                 {trialAccess.hasAccess && (
@@ -414,5 +431,44 @@ export function CoursePage({
         </section>
       )}
     </main>
+  );
+}
+
+interface CouponFormProps {
+  coupon: string;
+  onCouponChange: (coupon: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  couponError: string | null;
+  redeemingCoupon: boolean;
+}
+
+function CouponForm({
+  coupon,
+  onCouponChange,
+  onSubmit,
+  couponError,
+  redeemingCoupon,
+}: CouponFormProps) {
+  return (
+    <>
+      <form className="coupon-form" onSubmit={onSubmit}>
+        <label htmlFor="dropbox-coupon">Kod kuponu</label>
+        <input
+          id="dropbox-coupon"
+          type="text"
+          value={coupon}
+          onChange={(event) => onCouponChange(event.target.value)}
+          autoComplete="off"
+          required
+        />
+        <button
+          type="submit"
+          disabled={redeemingCoupon || !coupon.trim()}
+        >
+          {redeemingCoupon ? "Sprawdzanie kuponu..." : "Aktywuj kupon"}
+        </button>
+      </form>
+      {couponError && <p className="status error">{couponError}</p>}
+    </>
   );
 }

@@ -99,6 +99,15 @@ public sealed class DropboxCouponService(
         CancellationToken cancellationToken
     )
     {
+        if (userId == SuperAdminOptions.UserId)
+        {
+            return new DropboxTrialAccessResponse(
+                HasRedeemedCoupon: false,
+                HasAccess: true,
+                ExpiresAt: null
+            );
+        }
+
         var redemptions = await dbContext.DropboxCouponRedemptions
             .AsNoTracking()
             .Where(item =>
@@ -150,6 +159,15 @@ public sealed class DropboxCouponService(
         ))
         {
             throw new ArgumentOutOfRangeException(nameof(type));
+        }
+
+        if (userId == SuperAdminOptions.UserId)
+        {
+            return new DropboxTrialAccessResponse(
+                HasRedeemedCoupon: false,
+                HasAccess: true,
+                ExpiresAt: null
+            );
         }
 
         await using var transaction = await dbContext.Database
@@ -209,6 +227,14 @@ public sealed class DropboxCouponService(
     )
     {
         var course = await GetCourseLocationAsync(courseId, cancellationToken);
+        if (userId == SuperAdminOptions.UserId)
+        {
+            return new DropboxCouponRedemptionResult(
+                DropboxCouponRedemptionStatus.Redeemed,
+                await GetStatusAsync(userId, course, cancellationToken)
+            );
+        }
+
         var normalizedCode = code.Trim();
         var isTestCoupon = string.Equals(
             normalizedCode,
