@@ -106,6 +106,13 @@ public sealed class MailjetEmailService(
                     "Mailjet did not accept the email for delivery."
                 );
             }
+
+            var recipientResult = messages[0].To?.FirstOrDefault();
+            logger.LogInformation(
+                "Mailjet accepted email for processing. MessageId={MessageId}, MessageUuid={MessageUuid}. This does not confirm final delivery.",
+                recipientResult?.MessageId,
+                recipientResult?.MessageUuid
+            );
         }
         catch (OperationCanceledException)
         {
@@ -170,5 +177,17 @@ public sealed class MailjetEmailService(
     {
         [JsonPropertyName("Status")]
         public string? Status { get; init; }
+
+        [JsonPropertyName("To")]
+        public List<MailjetRecipientResult>? To { get; init; }
+    }
+
+    private sealed class MailjetRecipientResult
+    {
+        [JsonPropertyName("MessageID")]
+        public long? MessageId { get; init; }
+
+        [JsonPropertyName("MessageUUID")]
+        public string? MessageUuid { get; init; }
     }
 }

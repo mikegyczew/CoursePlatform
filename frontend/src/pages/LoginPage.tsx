@@ -47,7 +47,7 @@ export function LoginPage({
       if (registerMode) {
         await register(name, email);
         setNotice(
-          "Wysłaliśmy link potwierdzający na podany adres email. Po otwarciu linku ustawisz hasło i dokończysz rejestrację."
+          "Zgłoszenie wysyłki linku potwierdzającego zostało przyjęte. Sprawdź skrzynkę odbiorczą i folder spam. Jeśli wiadomość nie dotrze, jej status sprawdzimy w Mailjet. Po otwarciu linku ustawisz hasło i dokończysz rejestrację."
         );
       } else {
         const result = await login(email, password);

@@ -42,7 +42,7 @@ public class AuthController : ControllerBase
 
             return Accepted(new
             {
-                message = "Wysłaliśmy link potwierdzający na podany adres email."
+                message = "Zgłoszenie wysyłki linku potwierdzającego zostało przyjęte."
             });
         }
         catch (EmailDeliveryException exception)
