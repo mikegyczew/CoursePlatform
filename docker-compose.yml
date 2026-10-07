@@ -44,6 +44,7 @@ services:
       Dropbox__RootFolder: ${DROPBOX_ROOT_FOLDER:-/}
       Dropbox__CouponAdminKey: ${DROPBOX_COUPON_ADMIN_KEY:-}
       DropboxPricing__WeeklyPricePln: ${DROPBOX_WEEKLY_PRICE_PLN:-50}
+      DropboxPricing__TestCouponCode: ${DROPBOX_TEST_COUPON_CODE:-kuponTest}
       DropboxPricing__TestDurationDays: ${DROPBOX_TEST_DURATION_DAYS:-24}
       Cors__AllowedOrigins__0: http://localhost:3000
     ports:

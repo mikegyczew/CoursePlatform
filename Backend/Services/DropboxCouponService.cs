@@ -15,7 +15,6 @@ public sealed class DropboxCouponService(
     IOptions<DropboxPricingOptions> pricingOptions
 )
 {
-    private const string TestCouponCode = "kuponTest";
     private const string LegacyCouponCourseName = "Ekonomia";
     private static readonly string CouponAlphabet =
         "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -206,7 +205,7 @@ public sealed class DropboxCouponService(
         var normalizedCode = code.Trim();
         var isTestCoupon = string.Equals(
             normalizedCode,
-            TestCouponCode,
+            _pricingOptions.TestCouponCode,
             StringComparison.OrdinalIgnoreCase
         );
         var coupon = isTestCoupon

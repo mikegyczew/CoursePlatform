@@ -86,8 +86,9 @@ builder.Services
     .Validate(
         options =>
             options.WeeklyPricePln > 0
+            && !string.IsNullOrWhiteSpace(options.TestCouponCode)
             && options.TestDurationDays > 0,
-        "Dropbox weekly price and test duration must be greater than zero."
+        "Dropbox weekly price and test duration must be greater than zero, and the test coupon code must not be empty."
     )
     .ValidateOnStart();
 builder.Services.AddHttpClient<IDropboxService, DropboxService>();
